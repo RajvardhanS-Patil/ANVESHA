@@ -83,10 +83,12 @@ class LLMRouter:
         """Initialize API clients for configured providers."""
         settings = self._settings
 
-        # Groq
         if settings.groq_api_key:
-            self._groq_client = AsyncGroq(api_key=settings.groq_api_key)
-            self._groq_sync_client = Groq(api_key=settings.groq_api_key)
+            # Set max_retries=0 so the client throws RateLimitError immediately on 429
+            # instead of sleeping/retrying internally. This allows our custom fallback
+            # logic to instantly route the request to Gemini or OpenRouter.
+            self._groq_client = AsyncGroq(api_key=settings.groq_api_key, max_retries=0)
+            self._groq_sync_client = Groq(api_key=settings.groq_api_key, max_retries=0)
             logger.info("✓ Groq provider initialized")
         else:
             logger.warning("⚠ Groq API key not set — primary LLM/ASR unavailable")
@@ -102,6 +104,28 @@ class LLMRouter:
         # OpenRouter (lazy — only when needed)
         if settings.openrouter_api_key:
             logger.info("✓ OpenRouter fallback available")
+
+    def _best_available_provider(self, preferred: Provider, exclude: Optional[Provider] = None) -> Provider:
+        """Pick the best available provider, falling back if the preferred one isn't configured."""
+        provider_checks = {
+            Provider.GROQ: self._groq_client is not None,
+            Provider.GEMINI: self._gemini_configured,
+            Provider.OPENROUTER: bool(self._settings.openrouter_api_key),
+        }
+
+        # If preferred is available and not excluded, use it
+        if preferred != exclude and provider_checks.get(preferred, False):
+            return preferred
+
+        # Otherwise find first available (order: Groq > Gemini > OpenRouter)
+        for p in [Provider.GROQ, Provider.GEMINI, Provider.OPENROUTER]:
+            if p != exclude and provider_checks.get(p, False):
+                if p != preferred:
+                    logger.info(f"Provider {preferred.value} unavailable, falling back to {p.value}")
+                return p
+
+        # Nothing available — return preferred and let it error naturally
+        return preferred
 
     async def generate(
         self,
@@ -126,6 +150,9 @@ class LLMRouter:
         Returns:
             Generated text string
         """
+        # Auto-select available provider if requested one isn't configured
+        provider = self._best_available_provider(provider)
+
         try:
             if provider == Provider.GROQ:
                 return await self._groq_generate(
@@ -153,7 +180,10 @@ class LLMRouter:
         provider: Provider = Provider.GROQ,
         temperature: float = 0.0,
     ) -> dict:
-        """Generate structured JSON output from an LLM."""
+        """Generate structured JSON output from an LLM. Falls back across providers."""
+        # Auto-select available provider if requested one isn't configured
+        provider = self._best_available_provider(provider)
+
         try:
             if provider == Provider.GROQ:
                 response = await self._groq_generate(
@@ -176,6 +206,14 @@ class LLMRouter:
                 )
         except Exception as e:
             logger.error(f"generate_json failed with {provider}: {e}")
+            # Try fallback provider
+            fallback = self._best_available_provider(provider, exclude=provider)
+            if fallback != provider:
+                logger.info(f"generate_json retrying with fallback provider {fallback}")
+                try:
+                    return await self.generate_json(prompt, system_prompt, fallback, temperature)
+                except Exception as e2:
+                    logger.error(f"generate_json fallback also failed: {e2}")
             return {"error": str(e)}
 
         # Parse JSON from response

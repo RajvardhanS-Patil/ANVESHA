@@ -69,6 +69,10 @@ class Settings(BaseSettings):
         default=0.6, description="Min confidence to include a claim"
     )
 
+    # --- Lyzr AI ---
+    lyzr_api_key: Optional[str] = Field(default=None, description="Lyzr API Key")
+    lyzr_agent_id: Optional[str] = Field(default=None, description="Lyzr Agent ID")
+
     # --- Server ---
     host: str = Field(default="0.0.0.0", description="Server host")
     port: int = Field(default=8000, description="Server port")

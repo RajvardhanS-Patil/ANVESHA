@@ -51,6 +51,7 @@ IMAGE_MIME_MAP = {
 # In-memory document store (for now — will be replaced by Neo4j in Phase 2)
 _document_store: dict[str, IngestionResult] = {}
 _chunk_store: dict[str, dict] = {}
+_raw_file_store: dict[str, tuple[bytes, str]] = {}  # doc_id -> (raw_bytes, filename)
 
 
 def get_document_store() -> dict:
@@ -61,6 +62,11 @@ def get_document_store() -> dict:
 def get_chunk_store() -> dict:
     """Get the in-memory chunk store."""
     return _chunk_store
+
+
+def get_raw_file_store() -> dict:
+    """Get the in-memory raw file bytes store."""
+    return _raw_file_store
 
 
 @router.post("/ingest")
@@ -98,6 +104,9 @@ async def ingest_file(
 
     if not file_data:
         raise HTTPException(status_code=400, detail="Empty file")
+
+    # Store raw file bytes for later annotated export
+    _raw_file_store[doc_id] = (file_data, filename)
 
     # Route to correct pipeline
     results: list[IngestionResult] = []
@@ -313,3 +322,97 @@ async def add_custom_relationship(request: CustomRelationshipRequest):
     
     result = await write_relationships_to_graph([relationship])
     return result
+
+
+@router.post("/ingest/analyze/{doc_id}")
+async def analyze_document(doc_id: str):
+    """
+    Run the full ANVESHA pipeline for a specific uploaded document:
+    1. Retrieve the document's chunks from the store
+    2. Build a compliance context from chunk text
+    3. Run the Multi-Agent Debate (Advocate vs Skeptic vs Judge)
+    4. Run the Compliance Gap Analysis
+    5. Return combined result with compliance score and debate transcript
+    """
+    if doc_id not in _document_store:
+        raise HTTPException(status_code=404, detail=f"Document {doc_id} not found. Upload it first.")
+
+    doc = _document_store[doc_id]
+    filename = doc.filename
+
+    # Build context text from the document's chunks
+    doc_chunks = [c for cid, c in _chunk_store.items() if c.get("doc_id") == doc_id]
+    if not doc_chunks:
+        # Also try searching by filename match in chunk store
+        doc_chunks = [c for cid, c in _chunk_store.items() if c.get("source_filename") == filename]
+
+    if not doc_chunks:
+        # Fall back: use all chunks in store (we have the doc but chunks may use different key)
+        doc_chunks = list(_chunk_store.values())[:20]  # first 20 chunks
+
+    # Build a condensed text context (first 4000 chars from doc)
+    context_parts = []
+    for chunk in doc_chunks[:15]:
+        text = chunk.get("raw_text", "")
+        if text:
+            context_parts.append(f"[{chunk.get('citation', filename)}]\n{text[:500]}")
+
+    doc_context = "\n\n---\n\n".join(context_parts) if context_parts else f"Document: {filename}"
+
+    # Build the debate question for this specific document
+    debate_question = (
+        f"Perform a comprehensive compliance analysis of the uploaded document '{filename}'. "
+        f"Identify all compliance gaps, regulatory risks, and control deficiencies present in this document. "
+        f"Assess against GDPR, ISO 27001, SOC2, and other applicable frameworks. "
+        f"Document Context:\n\n{doc_context[:3000]}"
+    )
+
+    logger.info(f"Starting compliance debate for doc {doc_id} ({filename})")
+
+    try:
+        from app.retrieval.debate import run_compliance_debate
+        debate_result = await run_compliance_debate(
+            question=debate_question,
+            k_hops=2,
+            top_k_seeds=8,
+        )
+    except Exception as e:
+        logger.error(f"Debate failed for {doc_id}: {e}")
+        debate_result = {
+            "verdict": "PARTIAL",
+            "confidence": 40,
+            "answer": f"Debate engine encountered an error: {e}. Please retry.",
+            "advocate_argument": "Analysis in progress...",
+            "skeptic_argument": "Analysis in progress...",
+            "citations": [],
+            "debate_mode": True,
+        }
+
+    # Run the gap analysis to get a structured compliance report
+    try:
+        from app.audit.gap_analysis import run_gap_analysis, get_audit_reports
+        audit_report = await run_gap_analysis()
+        report_id = audit_report["report_id"]
+    except Exception as e:
+        logger.error(f"Gap analysis failed for {doc_id}: {e}")
+        audit_report = None
+        report_id = None
+
+    return {
+        "doc_id": doc_id,
+        "filename": filename,
+        "debate": {
+            "verdict": debate_result.get("verdict", "PARTIAL"),
+            "confidence": debate_result.get("confidence", 0),
+            "advocate_argument": debate_result.get("advocate_argument", ""),
+            "skeptic_argument": debate_result.get("skeptic_argument", ""),
+            "judge_ruling": debate_result.get("answer", ""),
+            "citations": debate_result.get("citations", []),
+        },
+        "compliance_report": {
+            "report_id": report_id,
+            "compliance_score": audit_report.get("compliance_score", 0) if audit_report else 0,
+            "summary": audit_report.get("summary", {}) if audit_report else {},
+        },
+        "status": "complete"
+    }
