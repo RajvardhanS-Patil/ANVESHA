@@ -10,6 +10,7 @@ Handles:
 
 import logging
 import time
+import uuid
 from typing import Optional
 from datetime import datetime, timezone
 
@@ -18,6 +19,10 @@ from app.providers.llm_router import get_llm_router
 from app.ingestion.base import IngestedChunk, IngestionResult
 
 logger = logging.getLogger(__name__)
+
+# --- Fallback In-Memory Cache (for offline mode) ---
+_fallback_nodes: list[dict] = []
+_fallback_edges: list[dict] = []
 
 
 async def write_document_to_graph(ingestion_result: IngestionResult) -> dict:
@@ -70,8 +75,27 @@ async def write_entities_to_graph(
     """
     client = get_neo4j_client()
     if not client.is_connected():
-        logger.warning("Neo4j not connected — skipping entity write")
-        return {"status": "skipped", "reason": "neo4j_disconnected", "written": 0}
+        logger.warning("Neo4j not connected — caching entities in-memory")
+        written = 0
+        for e in entities:
+            exists = any(fn["name"].lower() == e["name"].lower() and fn["type"] == e["entity_type"] for fn in _fallback_nodes)
+            if not exists:
+                _fallback_nodes.append({
+                    "id": e.get("id") or str(uuid.uuid4()),
+                    "name": e["name"],
+                    "type": e["entity_type"],
+                    "description": e.get("description", ""),
+                    "confidence": e.get("extraction_confidence", 0.8),
+                    "source": e.get("source_filename", "Custom Curation")
+                })
+                written += 1
+        return {
+            "status": "success",
+            "written": written,
+            "errors": 0,
+            "total": len(entities),
+            "time_seconds": 0.0,
+        }
 
     router = get_llm_router()
     start_time = time.perf_counter()
@@ -174,8 +198,25 @@ async def write_relationships_to_graph(relationships: list[dict]) -> dict:
     """
     client = get_neo4j_client()
     if not client.is_connected():
-        logger.warning("Neo4j not connected — skipping relationship write")
-        return {"status": "skipped", "reason": "neo4j_disconnected", "written": 0}
+        logger.warning("Neo4j not connected — caching relationships in-memory")
+        written = 0
+        for r in relationships:
+            source_node = next((n for n in _fallback_nodes if n["name"].lower() == r["source_entity"].lower()), None)
+            target_node = next((n for n in _fallback_nodes if n["name"].lower() == r["target_entity"].lower()), None)
+            
+            source_id = source_node["id"] if source_node else r["source_entity"].lower().replace(" ", "-")
+            target_id = target_node["id"] if target_node else r["target_entity"].lower().replace(" ", "-")
+            
+            exists = any(rel["source"] == source_id and rel["target"] == target_id and rel["type"] == r["relation_type"] for rel in _fallback_edges)
+            if not exists:
+                _fallback_edges.append({
+                    "source": source_id,
+                    "target": target_id,
+                    "type": r["relation_type"],
+                    "description": r.get("description", "")
+                })
+                written += 1
+        return {"status": "success", "written": written, "errors": 0, "total": len(relationships)}
 
     start_time = time.perf_counter()
     written = 0
@@ -289,7 +330,10 @@ async def get_full_graph() -> dict:
     """
     client = get_neo4j_client()
     if not client.is_connected():
-        return {"nodes": [], "edges": []}
+        return {
+            "nodes": _fallback_nodes,
+            "edges": _fallback_edges,
+        }
 
     try:
         # Get all entities

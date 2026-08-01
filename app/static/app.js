@@ -796,3 +796,89 @@ async function downloadAuditReport() {
         showToast(`Download failed: ${e.message}`, 'error');
     }
 }
+
+// === Graph Curator submits ===
+async function submitCustomEntity() {
+    const nameEl = document.getElementById('curatorEntName');
+    const typeEl = document.getElementById('curatorEntType');
+    const descEl = document.getElementById('curatorEntDesc');
+
+    const name = nameEl.value.trim();
+    const entity_type = typeEl.value;
+    const description = descEl.value.trim();
+
+    if (!name) {
+        showToast('Entity name cannot be empty', 'error');
+        return;
+    }
+    if (!entity_type) {
+        showToast('Please select an entity type', 'error');
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/graph/entity', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, entity_type, description })
+        });
+        const data = await res.json();
+        
+        if (data.status === 'success') {
+            showToast(`Custom entity "${name}" added!`, 'success');
+            nameEl.value = '';
+            typeEl.value = '';
+            descEl.value = '';
+            loadGraph();
+            refreshStatus();
+        } else {
+            showToast('Failed to write entity to graph', 'error');
+        }
+    } catch (e) {
+        showToast(`Error adding entity: ${e.message}`, 'error');
+    }
+}
+
+async function submitCustomRelationship() {
+    const sourceEl = document.getElementById('curatorRelSource');
+    const typeEl = document.getElementById('curatorRelType');
+    const targetEl = document.getElementById('curatorRelTarget');
+    const descEl = document.getElementById('curatorRelDesc');
+
+    const source_entity = sourceEl.value.trim();
+    const relation_type = typeEl.value;
+    const target_entity = targetEl.value.trim();
+    const description = descEl.value.trim();
+
+    if (!source_entity || !target_entity) {
+        showToast('Source and Target entity names are required', 'error');
+        return;
+    }
+    if (!relation_type) {
+        showToast('Please select a relationship type', 'error');
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/graph/relationship', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ source_entity, target_entity, relation_type, description })
+        });
+        const data = await res.json();
+
+        if (data.status === 'success') {
+            showToast('Linked entities successfully!', 'success');
+            sourceEl.value = '';
+            typeEl.value = '';
+            targetEl.value = '';
+            descEl.value = '';
+            loadGraph();
+            refreshStatus();
+        } else {
+            showToast('Failed to link entities', 'error');
+        }
+    } catch (e) {
+        showToast(`Error adding relationship: ${e.message}`, 'error');
+    }
+}

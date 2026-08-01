@@ -257,3 +257,59 @@ async def get_chunk(chunk_id: str):
 async def get_graph():
     """Get the full knowledge graph for visualization."""
     return await get_full_graph()
+
+
+from pydantic import BaseModel, Field
+
+class CustomEntityRequest(BaseModel):
+    name: str = Field(..., min_length=1, description="Entity name")
+    entity_type: str = Field(..., description="Ontology entity type")
+    description: Optional[str] = Field(default="")
+
+class CustomRelationshipRequest(BaseModel):
+    source_entity: str = Field(..., description="Source entity name")
+    target_entity: str = Field(..., description="Target entity name")
+    relation_type: str = Field(..., description="Ontology relationship type")
+    description: Optional[str] = Field(default="")
+
+
+@router.post("/graph/entity")
+async def add_custom_entity(request: CustomEntityRequest):
+    """Add a custom entity to the knowledge graph."""
+    from app.graph.writer import write_entities_to_graph
+    from app.extraction.ontology import normalize_entity_type
+    
+    normalized_type = normalize_entity_type(request.entity_type)
+    
+    entity = {
+        "name": request.name.strip(),
+        "entity_type": normalized_type,
+        "description": request.description.strip(),
+        "source_filename": "Manual Curation",
+        "extraction_confidence": 1.0
+    }
+    
+    result = await write_entities_to_graph([entity], generate_embeddings=True)
+    return result
+
+
+@router.post("/graph/relationship")
+async def add_custom_relationship(request: CustomRelationshipRequest):
+    """Add a custom relationship to the knowledge graph."""
+    from app.graph.writer import write_relationships_to_graph
+    from app.extraction.ontology import normalize_relation_type
+    import uuid
+    
+    normalized_rel = normalize_relation_type(request.relation_type)
+    
+    relationship = {
+        "id": str(uuid.uuid4()),
+        "source_entity": request.source_entity.strip(),
+        "target_entity": request.target_entity.strip(),
+        "relation_type": normalized_rel,
+        "description": request.description.strip(),
+        "source_filename": "Manual Curation"
+    }
+    
+    result = await write_relationships_to_graph([relationship])
+    return result

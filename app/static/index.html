@@ -121,16 +121,78 @@
 
             <!-- Graph Panel -->
             <div class="graph-panel" id="graphPanel">
-                <div class="graph-container" id="graphContainer"></div>
-                <div class="graph-legend" id="graphLegend">
-                    <div class="legend-item"><span class="legend-dot" style="background:#ff4757"></span> Regulation</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#ff9100"></span> Requirement</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#00d4ff"></span> Control</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#7b2ff7"></span> System</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#00e676"></span> Evidence</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#ff6b9d"></span> Policy</div>
-                    <div class="legend-item"><span class="legend-dot" style="background:#ffd32a"></span> Person</div>
+                <div class="graph-canvas-wrapper" style="flex: 1; position: relative; display: flex; flex-direction: column; overflow: hidden;">
+                    <div class="graph-container" id="graphContainer" style="flex: 1;"></div>
+                    <div class="graph-legend" id="graphLegend">
+                        <div class="legend-item"><span class="legend-dot" style="background:#ff4757"></span> Regulation</div>
+                        <div class="legend-item"><span class="legend-dot" style="background:#ff9100"></span> Requirement</div>
+                        <div class="legend-item"><span class="legend-dot" style="background:#00d4ff"></span> Control</div>
+                        <div class="legend-item"><span class="legend-dot" style="background:#7b2ff7"></span> System</div>
+                        <div class="legend-item"><span class="legend-dot" style="background:#00e676"></span> Evidence</div>
+                        <div class="legend-item"><span class="legend-dot" style="background:#ff6b9d"></span> Policy</div>
+                        <div class="legend-item"><span class="legend-dot" style="background:#ffd32a"></span> Person</div>
+                    </div>
                 </div>
+
+                <aside class="graph-curator-sidebar">
+                    <div class="curator-section">
+                        <div class="curator-title">🛠️ Graph Curator</div>
+                        <p class="curator-desc">Manually expand compliance maps, link assets, or inject evidence.</p>
+                    </div>
+
+                    <!-- Add Entity Form -->
+                    <div class="curator-form-block">
+                        <div class="curator-form-title">➕ Add Custom Entity</div>
+                        <div class="curator-form-group">
+                            <input type="text" id="curatorEntName" placeholder="Entity Name (e.g. Database-1)" class="curator-input">
+                        </div>
+                        <div class="curator-form-group">
+                            <select id="curatorEntType" class="curator-select">
+                                <option value="" disabled selected>Select Entity Type...</option>
+                                <option value="Regulation">Regulation</option>
+                                <option value="Requirement">Requirement</option>
+                                <option value="Control">Control</option>
+                                <option value="System">System</option>
+                                <option value="Asset">Asset</option>
+                                <option value="Evidence">Evidence</option>
+                                <option value="Policy">Policy</option>
+                                <option value="Person">Person</option>
+                            </select>
+                        </div>
+                        <div class="curator-form-group">
+                            <textarea id="curatorEntDesc" placeholder="Brief Description..." rows="2" class="curator-textarea"></textarea>
+                        </div>
+                        <button class="curator-btn" onclick="submitCustomEntity()">Add Entity</button>
+                    </div>
+
+                    <!-- Add Relationship Form -->
+                    <div class="curator-form-block">
+                        <div class="curator-form-title">🔗 Add Custom Relationship</div>
+                        <div class="curator-form-group">
+                            <input type="text" id="curatorRelSource" placeholder="Source Entity (e.g. Database-1)" class="curator-input">
+                        </div>
+                        <div class="curator-form-group">
+                            <select id="curatorRelType" class="curator-select">
+                                <option value="" disabled selected>Select Relationship Type...</option>
+                                <option value="REQUIRES">REQUIRES</option>
+                                <option value="IMPLEMENTED_BY">IMPLEMENTED_BY</option>
+                                <option value="EVIDENCED_BY">EVIDENCED_BY</option>
+                                <option value="APPLIES_TO">APPLIES_TO</option>
+                                <option value="RESPONSIBLE_FOR">RESPONSIBLE_FOR</option>
+                                <option value="CONTAINS">CONTAINS</option>
+                                <option value="MITIGATES">MITIGATES</option>
+                                <option value="RELATED_TO">RELATED_TO</option>
+                            </select>
+                        </div>
+                        <div class="curator-form-group">
+                            <input type="text" id="curatorRelTarget" placeholder="Target Entity (e.g. GDPR-ART-32)" class="curator-input">
+                        </div>
+                        <div class="curator-form-group">
+                            <textarea id="curatorRelDesc" placeholder="Relation Description..." rows="2" class="curator-textarea"></textarea>
+                        </div>
+                        <button class="curator-btn secondary" onclick="submitCustomRelationship()">Link Entities</button>
+                    </div>
+                </aside>
             </div>
 
             <!-- Audit Panel -->
