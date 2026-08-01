@@ -20,11 +20,12 @@ router = APIRouter()
 
 
 class VerifiedQueryRequest(BaseModel):
-    """Request for a fully verified compliance query."""
+    """Request for a fully verified compliance Q&A query."""
     question: str = Field(..., description="The compliance question")
     k_hops: Optional[int] = Field(default=None)
     top_k_seeds: Optional[int] = Field(default=None)
     debate_mode: Optional[bool] = Field(default=False)
+    as_of: Optional[str] = Field(default=None)
 
 
 @router.post("/query/verified")
@@ -49,7 +50,7 @@ async def verified_compliance_query(request: VerifiedQueryRequest):
     if not request.question or not request.question.strip():
         raise HTTPException(status_code=400, detail="Question cannot be empty")
 
-    logger.info(f"Verified query: {request.question[:100]} (debate={request.debate_mode})")
+    logger.info(f"Verified query: {request.question[:100]} (debate={request.debate_mode}, as_of={request.as_of})")
 
     if request.debate_mode:
         from app.retrieval.debate import run_compliance_debate
@@ -57,6 +58,7 @@ async def verified_compliance_query(request: VerifiedQueryRequest):
             question=request.question,
             k_hops=request.k_hops,
             top_k_seeds=request.top_k_seeds,
+            as_of=request.as_of,
         )
         return debate_result
 
@@ -65,6 +67,7 @@ async def verified_compliance_query(request: VerifiedQueryRequest):
         question=request.question,
         k_hops=request.k_hops,
         top_k_seeds=request.top_k_seeds,
+        as_of=request.as_of,
     )
 
     raw_answer = graphrag_result.get("answer", "")

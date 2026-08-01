@@ -76,6 +76,7 @@ async def run_compliance_debate(
     k_hops: Optional[int] = None,
     top_k_seeds: Optional[int] = None,
     max_context_nodes: Optional[int] = None,
+    as_of: Optional[str] = None,
 ) -> dict:
     """
     Run the multi-agent debate loop:
@@ -92,7 +93,7 @@ async def run_compliance_debate(
     start_time = time.perf_counter()
     answer_id = str(uuid.uuid4())
 
-    logger.info(f"Initiating Compliance Debate [{answer_id[:8]}]: {question[:100]}")
+    logger.info(f"Initiating Compliance Debate [{answer_id[:8]}]: {question[:100]} (as_of={as_of})")
 
     router = get_llm_router()
     client = get_neo4j_client()
@@ -114,6 +115,29 @@ async def run_compliance_debate(
                     k_hops=k_hops,
                     max_nodes=max_context_nodes
                 )
+        
+        # Apply Temporal Compliance (Time-Travel) Filtering
+        if as_of:
+            seed_entities = [
+                s for s in seed_entities
+                if not s.get("entity", {}).get("created_at") or s.get("entity", {}).get("created_at") <= as_of
+            ]
+            filtered_nodes = [
+                n for n in evidence_subgraph.get("nodes", [])
+                if not n.get("created_at") or n.get("created_at") <= as_of
+            ]
+            filtered_node_ids = {n["id"] for n in filtered_nodes}
+            filtered_edges = [
+                e for e in evidence_subgraph.get("edges", [])
+                if (not e.get("created_at") or e.get("created_at") <= as_of)
+                and e.get("source") in filtered_node_ids
+                and e.get("target") in filtered_node_ids
+            ]
+            evidence_subgraph = {
+                "nodes": filtered_nodes,
+                "edges": filtered_edges
+            }
+
         evidence_text = _serialize_evidence(seed_entities, evidence_subgraph)
     except Exception as e:
         logger.error(f"Debate context retrieval failed: {e}")

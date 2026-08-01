@@ -254,9 +254,9 @@ async def get_chunk(chunk_id: str):
 
 
 @router.get("/graph")
-async def get_graph():
-    """Get the full knowledge graph for visualization."""
-    return await get_full_graph()
+async def get_graph(as_of: Optional[str] = None):
+    """Get the full knowledge graph for visualization (supports time-travel filtering)."""
+    return await get_full_graph(as_of=as_of)
 
 
 from pydantic import BaseModel, Field

@@ -86,7 +86,8 @@ async def write_entities_to_graph(
                     "type": e["entity_type"],
                     "description": e.get("description", ""),
                     "confidence": e.get("extraction_confidence", 0.8),
-                    "source": e.get("source_filename", "Custom Curation")
+                    "source": e.get("source_filename", "Custom Curation"),
+                    "created_at": datetime.now(timezone.utc).isoformat()
                 })
                 written += 1
         return {
@@ -213,7 +214,8 @@ async def write_relationships_to_graph(relationships: list[dict]) -> dict:
                     "source": source_id,
                     "target": target_id,
                     "type": r["relation_type"],
-                    "description": r.get("description", "")
+                    "description": r.get("description", ""),
+                    "created_at": datetime.now(timezone.utc).isoformat()
                 })
                 written += 1
         return {"status": "success", "written": written, "errors": 0, "total": len(relationships)}
@@ -321,7 +323,7 @@ async def write_mention_edges(entities: list[dict]) -> dict:
     return {"status": "success", "written": written}
 
 
-async def get_full_graph() -> dict:
+async def get_full_graph(as_of: Optional[str] = None) -> dict:
     """
     Get the full knowledge graph for visualization.
 
@@ -330,6 +332,16 @@ async def get_full_graph() -> dict:
     """
     client = get_neo4j_client()
     if not client.is_connected():
+        if as_of:
+            filtered_nodes = [n for n in _fallback_nodes if n.get("created_at", "") <= as_of]
+            filtered_node_ids = {n["id"] for n in filtered_nodes}
+            filtered_edges = [
+                e for e in _fallback_edges
+                if e.get("created_at", "") <= as_of
+                and e["source"] in filtered_node_ids
+                and e["target"] in filtered_node_ids
+            ]
+            return {"nodes": filtered_nodes, "edges": filtered_edges}
         return {
             "nodes": _fallback_nodes,
             "edges": _fallback_edges,
@@ -339,20 +351,25 @@ async def get_full_graph() -> dict:
         # Get all entities
         nodes_query = """
         MATCH (e:Entity)
+        WHERE $as_of IS NULL OR e.created_at <= $as_of OR e.valid_from <= $as_of
         RETURN e.id AS id, e.name AS name, e.entity_type AS type,
                e.description AS description, e.extraction_confidence AS confidence,
-               e.source_filename AS source
+               e.source_filename AS source, e.created_at AS created_at
         ORDER BY e.name
         """
-        nodes = await client.execute_read(nodes_query)
+        nodes = await client.execute_read(nodes_query, {"as_of": as_of})
 
         # Get all relationships
         edges_query = """
         MATCH (a:Entity)-[r]->(b:Entity)
+        WHERE $as_of IS NULL OR r.created_at <= $as_of OR (
+            (a.created_at IS NULL OR a.created_at <= $as_of) AND
+            (b.created_at IS NULL OR b.created_at <= $as_of)
+        )
         RETURN a.id AS source, b.id AS target, type(r) AS type,
                r.description AS description
         """
-        edges = await client.execute_read(edges_query)
+        edges = await client.execute_read(edges_query, {"as_of": as_of})
 
         return {
             "nodes": nodes,

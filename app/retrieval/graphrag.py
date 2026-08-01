@@ -59,6 +59,7 @@ async def query_graphrag(
     k_hops: Optional[int] = None,
     top_k_seeds: Optional[int] = None,
     max_context_nodes: Optional[int] = None,
+    as_of: Optional[str] = None,
 ) -> dict:
     """
     Full GraphRAG pipeline: query → retrieve → generate answer.
@@ -68,6 +69,7 @@ async def query_graphrag(
         k_hops: Number of graph traversal hops (default from config)
         top_k_seeds: Number of seed entities from vector search
         max_context_nodes: Maximum nodes in evidence context
+        as_of: Optional date string to query historical status
 
     Returns:
         Dict with answer, citations, confidence, evidence subgraph, answer_id
@@ -80,7 +82,7 @@ async def query_graphrag(
     start_time = time.perf_counter()
     answer_id = str(uuid.uuid4())
 
-    logger.info(f"GraphRAG query [{answer_id[:8]}]: {question[:100]}")
+    logger.info(f"GraphRAG query [{answer_id[:8]}]: {question[:100]} (as_of={as_of})")
 
     router = get_llm_router()
     client = get_neo4j_client()
@@ -123,6 +125,35 @@ async def query_graphrag(
                 )
         except Exception as e:
             logger.warning(f"k-hop traversal failed: {e}")
+
+    # --- Apply Temporal Compliance (Time-Travel) Filtering ---
+    if as_of:
+        # Filter seed entities
+        seed_entities = [
+            s for s in seed_entities
+            if not s.get("entity", {}).get("created_at") or s.get("entity", {}).get("created_at") <= as_of
+        ]
+        
+        # Filter subgraph nodes
+        filtered_nodes = [
+            n for n in evidence_subgraph.get("nodes", [])
+            if not n.get("created_at") or n.get("created_at") <= as_of
+        ]
+        filtered_node_ids = {n["id"] for n in filtered_nodes}
+        
+        # Filter subgraph edges
+        filtered_edges = [
+            e for e in evidence_subgraph.get("edges", [])
+            if (not e.get("created_at") or e.get("created_at") <= as_of)
+            and e.get("source") in filtered_node_ids
+            and e.get("target") in filtered_node_ids
+        ]
+        
+        evidence_subgraph = {
+            "nodes": filtered_nodes,
+            "edges": filtered_edges
+        }
+        logger.info(f"Temporal filtered: {len(filtered_nodes)} nodes, {len(filtered_edges)} edges")
 
     # --- Step 4: Serialize evidence for LLM context ---
     evidence_text = _serialize_evidence(seed_entities, evidence_subgraph)

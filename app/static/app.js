@@ -8,6 +8,7 @@ let queryCount = 0;
 let graphNetwork = null;
 let currentTab = 'chat';
 let lastReportId = null;
+let currentTimeTravelDate = null;
 
 // === Entity type colors for graph ===
 const ENTITY_COLORS = {
@@ -255,7 +256,7 @@ async function sendMessage() {
         const res = await fetch('/api/query/verified', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ question, debate_mode: debateMode }),
+            body: JSON.stringify({ question, debate_mode: debateMode, as_of: currentTimeTravelDate }),
         });
 
         const data = await res.json();
@@ -532,7 +533,11 @@ function switchTab(tab) {
 // === Knowledge Graph Visualization ===
 async function loadGraph() {
     try {
-        const res = await fetch('/api/graph');
+        let url = '/api/graph';
+        if (currentTimeTravelDate) {
+            url += `?as_of=${encodeURIComponent(currentTimeTravelDate)}`;
+        }
+        const res = await fetch(url);
         const data = await res.json();
 
         renderGraph(data.nodes || [], data.edges || []);
@@ -881,4 +886,55 @@ async function submitCustomRelationship() {
     } catch (e) {
         showToast(`Error adding relationship: ${e.message}`, 'error');
     }
+}
+
+// === Time Travel Handler ===
+function handleTimeTravel(val) {
+    const activeValEl = document.getElementById('temporalActiveVal');
+    const now = new Date();
+    
+    let hoursOffset = 0;
+    let label = "Present (Live)";
+    
+    switch (parseInt(val)) {
+        case 0:
+            hoursOffset = 24;
+            label = "24 Hours Ago";
+            break;
+        case 1:
+            hoursOffset = 12;
+            label = "12 Hours Ago";
+            break;
+        case 2:
+            hoursOffset = 4;
+            label = "4 Hours Ago";
+            break;
+        case 3:
+            hoursOffset = 1;
+            label = "1 Hour Ago";
+            break;
+        case 4:
+        default:
+            hoursOffset = 0;
+            label = "Present (Live)";
+            break;
+    }
+    
+    if (hoursOffset > 0) {
+        const targetDate = new Date(now.getTime() - hoursOffset * 60 * 60 * 1000);
+        currentTimeTravelDate = targetDate.toISOString();
+        activeValEl.textContent = label;
+        // Make the temporal indicator glow slightly yellow in filter mode
+        activeValEl.style.color = 'var(--accent-orange)';
+        activeValEl.style.textShadow = '0 0 8px rgba(255, 145, 0, 0.3)';
+    } else {
+        currentTimeTravelDate = null;
+        activeValEl.textContent = "Present (Live)";
+        activeValEl.style.color = 'var(--accent-cyan)';
+        activeValEl.style.textShadow = '0 0 8px rgba(0, 212, 255, 0.2)';
+    }
+    
+    // Refresh current view graph dynamically
+    loadGraph();
+    showToast(`Time travel: showing compliance status as of ${label}`, 'info');
 }

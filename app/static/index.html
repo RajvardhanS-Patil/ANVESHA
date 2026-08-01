@@ -19,6 +19,19 @@
                     <div class="header-subtitle">Compliance Intelligence Platform</div>
                 </div>
             </div>
+
+            <!-- 🕒 Temporal Filter (Time Travel) Slider -->
+            <div class="header-temporal-control" style="display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.02); padding: 6px 16px; border: 1px solid var(--border-color); border-radius: var(--radius-full);">
+                <span class="temporal-icon" style="font-size: 0.85rem; filter: drop-shadow(0 0 4px rgba(0, 212, 255, 0.2));">🕒</span>
+                <div class="temporal-slider-wrapper" style="display: flex; flex-direction: column;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.65rem; color: var(--text-secondary); min-width: 200px;">
+                        <span style="font-weight: 500; letter-spacing: 0.3px;">TIME TRAVEL</span>
+                        <span id="temporalActiveVal" style="color: var(--accent-cyan); font-weight: 700; text-shadow: 0 0 8px rgba(0, 212, 255, 0.2);">Present (Live)</span>
+                    </div>
+                    <input type="range" id="temporalSlider" min="0" max="4" value="4" oninput="handleTimeTravel(this.value)" style="width: 220px; height: 3px; background: var(--bg-tertiary); accent-color: var(--accent-cyan); cursor: pointer; margin-top: 4px;">
+                </div>
+            </div>
+
             <div class="header-status">
                 <div class="status-indicator">
                     <span class="status-dot" id="neo4jStatus"></span>
