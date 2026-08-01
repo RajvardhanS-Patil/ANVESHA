@@ -1,0 +1,163 @@
+{
+    "version": "1.0",
+    "description": "Gold standard Q&A set for ANVESHA compliance intelligence evaluation",
+    "questions": [
+        {
+            "id": "q1",
+            "question": "What are the key principles of GDPR Article 5 for data processing?",
+            "expected_entities": ["GDPR", "Article 5", "data processing"],
+            "expected_entity_types": ["Regulation", "Requirement"],
+            "gold_answer_keywords": ["lawfulness", "fairness", "transparency", "purpose limitation", "data minimisation"],
+            "requires_source_types": ["pdf"],
+            "should_abstain": false,
+            "difficulty": "basic"
+        },
+        {
+            "id": "q2",
+            "question": "What controls are required for ISO 27001 Annex A information security?",
+            "expected_entities": ["ISO 27001", "Annex A"],
+            "expected_entity_types": ["Regulation", "Control"],
+            "gold_answer_keywords": ["access control", "cryptography", "physical security", "operations security"],
+            "requires_source_types": ["pdf"],
+            "should_abstain": false,
+            "difficulty": "basic"
+        },
+        {
+            "id": "q3",
+            "question": "What are the data breach notification requirements under GDPR?",
+            "expected_entities": ["GDPR", "data breach", "notification"],
+            "expected_entity_types": ["Regulation", "Requirement"],
+            "gold_answer_keywords": ["72 hours", "supervisory authority", "data subjects", "without undue delay"],
+            "requires_source_types": ["pdf"],
+            "should_abstain": false,
+            "difficulty": "basic"
+        },
+        {
+            "id": "q4",
+            "question": "Which systems implement the encryption control and what evidence supports this?",
+            "expected_entities": ["encryption", "control"],
+            "expected_entity_types": ["Control", "System", "Evidence"],
+            "gold_answer_keywords": ["encryption", "implemented", "evidence", "certificate"],
+            "requires_source_types": ["pdf"],
+            "should_abstain": false,
+            "difficulty": "multi-hop"
+        },
+        {
+            "id": "q5",
+            "question": "What is the relationship between NIST CSF and ISO 27001 controls?",
+            "expected_entities": ["NIST CSF", "ISO 27001"],
+            "expected_entity_types": ["Regulation", "Control"],
+            "gold_answer_keywords": ["framework", "mapping", "controls", "identify", "protect", "detect"],
+            "requires_source_types": ["pdf"],
+            "should_abstain": false,
+            "difficulty": "multi-hop"
+        },
+        {
+            "id": "q6",
+            "question": "Who is responsible for data protection compliance and what policies do they oversee?",
+            "expected_entities": ["DPO", "data protection"],
+            "expected_entity_types": ["Person", "Policy"],
+            "gold_answer_keywords": ["data protection officer", "responsible", "policies", "compliance"],
+            "requires_source_types": ["pdf", "audio"],
+            "should_abstain": false,
+            "difficulty": "multi-hop"
+        },
+        {
+            "id": "q7",
+            "question": "What SOC 2 Trust Services Criteria apply to system availability?",
+            "expected_entities": ["SOC 2", "Trust Services Criteria", "availability"],
+            "expected_entity_types": ["Regulation", "Requirement"],
+            "gold_answer_keywords": ["availability", "trust services", "criteria", "controls"],
+            "requires_source_types": ["pdf"],
+            "should_abstain": false,
+            "difficulty": "basic"
+        },
+        {
+            "id": "q8",
+            "question": "What incidents violated the data retention policy in Q3 2025?",
+            "expected_entities": ["data retention", "incident"],
+            "expected_entity_types": ["Incident", "Policy"],
+            "gold_answer_keywords": [],
+            "requires_source_types": ["pdf", "audio"],
+            "should_abstain": true,
+            "difficulty": "trap",
+            "trap_reason": "No Q3 2025 incident data exists in the corpus — system must abstain"
+        },
+        {
+            "id": "q9",
+            "question": "What is the internal audit schedule for the payment processing system?",
+            "expected_entities": ["audit", "payment processing"],
+            "expected_entity_types": ["Evidence", "System"],
+            "gold_answer_keywords": [],
+            "requires_source_types": [],
+            "should_abstain": true,
+            "difficulty": "trap",
+            "trap_reason": "Specific internal audit schedule unlikely in public compliance docs"
+        },
+        {
+            "id": "q10",
+            "question": "Compare the access control requirements across GDPR, ISO 27001, and NIST CSF.",
+            "expected_entities": ["GDPR", "ISO 27001", "NIST CSF", "access control"],
+            "expected_entity_types": ["Regulation", "Control", "Requirement"],
+            "gold_answer_keywords": ["access control", "authorization", "authentication", "principle of least privilege"],
+            "requires_source_types": ["pdf"],
+            "should_abstain": false,
+            "difficulty": "analytical"
+        },
+        {
+            "id": "q11",
+            "question": "What network architecture components are shown in the system schematic?",
+            "expected_entities": ["network", "architecture", "components"],
+            "expected_entity_types": ["System", "Asset"],
+            "gold_answer_keywords": ["firewall", "server", "network", "database"],
+            "requires_source_types": ["schematic"],
+            "should_abstain": false,
+            "difficulty": "multi-modal"
+        },
+        {
+            "id": "q12",
+            "question": "What compliance findings were discussed in the last audit review meeting?",
+            "expected_entities": ["audit review", "compliance findings"],
+            "expected_entity_types": ["AuditFinding", "Evidence"],
+            "gold_answer_keywords": ["finding", "audit", "review", "recommendation"],
+            "requires_source_types": ["audio"],
+            "should_abstain": false,
+            "difficulty": "multi-modal"
+        },
+        {
+            "id": "q13",
+            "question": "What is the capital city of France and how does it relate to GDPR compliance?",
+            "expected_entities": [],
+            "expected_entity_types": [],
+            "gold_answer_keywords": [],
+            "requires_source_types": [],
+            "should_abstain": true,
+            "difficulty": "trap",
+            "trap_reason": "First part is general knowledge (not compliance), second part is forced — system should not fabricate a connection"
+        },
+        {
+            "id": "q14",
+            "question": "What encryption standards are required for data at rest and in transit per the current policy?",
+            "expected_entities": ["encryption", "data at rest", "data in transit"],
+            "expected_entity_types": ["Control", "Policy", "Requirement"],
+            "gold_answer_keywords": ["AES", "TLS", "encryption", "at rest", "in transit"],
+            "requires_source_types": ["pdf"],
+            "should_abstain": false,
+            "difficulty": "basic"
+        },
+        {
+            "id": "q15",
+            "question": "Trace the compliance chain from GDPR Article 32 to the specific technical controls implemented by the organization.",
+            "expected_entities": ["GDPR", "Article 32", "technical controls"],
+            "expected_entity_types": ["Regulation", "Requirement", "Control", "System"],
+            "gold_answer_keywords": ["Article 32", "security of processing", "technical", "organizational", "measures"],
+            "requires_source_types": ["pdf"],
+            "should_abstain": false,
+            "difficulty": "multi-hop"
+        }
+    ],
+    "entity_gold_set": {
+        "description": "Manually annotated entities for extraction F1 evaluation. To be populated per document.",
+        "documents": {}
+    }
+}
