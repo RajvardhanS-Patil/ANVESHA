@@ -1,0 +1,461 @@
+{
+  "410daca4-270c-4be1-b3d7-c5df23bd6d3a": {
+    "report_id": "410daca4-270c-4be1-b3d7-c5df23bd6d3a",
+    "compliance_score": 33,
+    "summary": {
+      "total_controls": 6,
+      "met_controls": 2,
+      "partial_controls": 3,
+      "gap_controls": 1
+    },
+    "controls": [
+      {
+        "requirement_id": "GDPR-ART-5-1-F",
+        "name": "Article 5(1)(f) - Integrity and Confidentiality",
+        "framework": "GDPR",
+        "category": "Data Minimization & Security",
+        "description": "Personal data must be processed in a manner that ensures appropriate security, including protection against unauthorized or unlawful processing and against accidental loss, destruction or damage, using appropriate technical or organizational measures.",
+        "status": "MET",
+        "evidence_found": [
+          "Apex_Security_Policy.pdf, Section 1.0 Purpose and Scope",
+          "Apex Payments guarantees that 100% of customer data is encrypted both in transit and at rest using AES-256"
+        ],
+        "reasoning": "The provided evidence demonstrates that Apex Payments Inc. has a comprehensive Information Security and Data Protection Policy in place, which explicitly guarantees the encryption of 100% of customer data both in transit and at rest using AES-256. This policy applies to all employees, contractors, systems, and data, indicating a thorough approach to ensuring the integrity and confidentiality of personal data. The policy's emphasis on protecting confidentiality, integrity, and availability, along with the specific technical measure of using AES-256 encryption, aligns with the requirement for appropriate security measures to protect against unauthorized or unlawful processing and against accidental loss, destruction, or damage.",
+        "remediation": []
+      },
+      {
+        "requirement_id": "GDPR-ART-32",
+        "name": "Article 32 - Security of Processing",
+        "framework": "GDPR",
+        "category": "Technical Controls",
+        "description": "Implementation of appropriate technical and organizational measures to ensure a level of security appropriate to the risk, including encryption of personal data, maintaining ongoing confidentiality, integrity, availability, and resilience of processing systems.",
+        "status": "MET",
+        "evidence_found": [
+          "Apex Payments guarantees that 100% of customer data is encrypted both in transit and at rest using AES-256",
+          "Apex Payments is committed to protecting the confidentiality, integrity, and availability of information while supporting reliable financial services"
+        ],
+        "reasoning": "The provided evidence demonstrates a clear commitment to implementing technical and organizational measures to ensure the security of processing. Specifically, the guarantee of 100% encryption of customer data both in transit and at rest using AES-256, along with the commitment to protecting confidentiality, integrity, and availability, directly addresses the requirements outlined in Article 32. The policy's applicability to all employees, contractors, systems, and data further reinforces the comprehensive nature of Apex Payments' approach to security, thereby fulfilling the requirement.",
+        "remediation": []
+      },
+      {
+        "requirement_id": "GDPR-ART-33",
+        "name": "Article 33 - Notification of Personal Data Breach",
+        "framework": "GDPR",
+        "category": "Incident Response",
+        "description": "In the case of a personal data breach, the controller shall without undue delay and, where feasible, not later than 72 hours after having become aware of it, notify the personal data breach to the supervisory authority.",
+        "status": "PARTIAL",
+        "evidence_found": [
+          "Document snippet #2 (Source: Apex_Security_Policy.pdf): 5.0 Incident Response",
+          "Document snippet #1 (Source: Apex_Security_Policy.pdf): Information Security and Data Protection Policy"
+        ],
+        "reasoning": "The company's Information Security and Data Protection Policy does mention incident response and the requirement for employees and contractors to report suspected security incidents immediately to the Security Team. However, it does not explicitly state the procedure for notifying the supervisory authority in the event of a personal data breach within 72 hours as required by Article 33. The policy does demonstrate an understanding of the importance of security and data protection, but it lacks specific details on the notification process to the supervisory authority, thus it is rated as PARTIAL.",
+        "remediation": [
+          "Develop a specific procedure for notifying the supervisory authority in the event of a personal data breach, including timelines and responsible personnel.",
+          "Update the Information Security and Data Protection Policy to include the details of the personal data breach notification process to ensure compliance with Article 33."
+        ]
+      },
+      {
+        "requirement_id": "ISO-A-8-24",
+        "name": "Control A.8.24 - Use of Cryptography",
+        "framework": "ISO 27001",
+        "category": "Access Control",
+        "description": "Rules for the effective use of cryptography, including cryptographic key management, should be defined and implemented to protect the confidentiality, authenticity, and integrity of information.",
+        "status": "PARTIAL",
+        "evidence_found": [
+          "Apex Payments guarantees that 100% of customer data is encrypted both in transit and at rest using AES-256",
+          "All teams are expected to design and operate systems in accordance with this assurance and to report deviations"
+        ],
+        "reasoning": "The provided evidence demonstrates that Apex Payments has a policy in place for the use of cryptography, specifically guaranteeing the encryption of 100% of customer data both in transit and at rest using AES-256. However, the evidence lacks detailed rules for cryptographic key management, which is a crucial aspect of the effective use of cryptography as required by Control A.8.24. The policy mentions reporting deviations but does not explicitly outline the procedures for cryptographic key management, leaving room for potential risks and gaps in implementation.",
+        "remediation": [
+          "Develop and implement detailed cryptographic key management procedures",
+          "Include these procedures in the Information Security and Data Protection Policy to ensure comprehensive coverage of cryptography use"
+        ]
+      },
+      {
+        "requirement_id": "ISO-A-8-20",
+        "name": "Control A.8.20 - Network Security",
+        "framework": "ISO 27001",
+        "category": "Network Security",
+        "description": "Networks and network devices should be secured, managed, and controlled to protect information in systems and applications.",
+        "status": "GAP",
+        "evidence_found": [],
+        "reasoning": "The provided company compliance context does not address network security, management, or control to protect information in systems and applications. The evidence focuses on backup, recovery, business continuity, and incident response but lacks any details related to securing networks and network devices.",
+        "remediation": [
+          "Develop and implement a comprehensive network security policy that includes measures to secure, manage, and control networks and network devices.",
+          "Conduct a risk assessment to identify potential network security threats and implement controls to mitigate these risks.",
+          "Establish procedures for network device configuration, management, and monitoring to ensure the security of information in systems and applications."
+        ]
+      },
+      {
+        "requirement_id": "ISO-A-5-36",
+        "name": "Control A.5.36 - Compliance with Policies",
+        "framework": "ISO 27001",
+        "category": "Incident Management",
+        "description": "The compliance of systems and processes with organization's information security policies and standards should be regularly reviewed.",
+        "status": "PARTIAL",
+        "evidence_found": [
+          "Document snippet #1 (Source: Apex_Security_Policy.pdf)",
+          "Document snippet #2 (Source: Apex_Security_Policy.pdf)",
+          "Document snippet #3 (Source: Apex_Security_Policy.pdf)"
+        ],
+        "reasoning": "The provided evidence demonstrates that the company has some policies and procedures in place related to incident management, such as backup and recovery processes, and incident response protocols. However, the evidence does not explicitly state that these policies and procedures are regularly reviewed for compliance with the organization's information security policies and standards. The fact that management acknowledges limitations and intends to evaluate improvements suggests some level of awareness, but it does not fully address the requirement for regular review of compliance.",
+        "remediation": [
+          "Develop a schedule for regular review of compliance with information security policies and standards",
+          "Implement a process to monitor and assess the effectiveness of incident management policies and procedures"
+        ]
+      }
+    ],
+    "metadata": {
+      "processing_time_seconds": 104.44,
+      "engine": "ANVESHA-AutoAuditor-v1.0"
+    },
+    "generated_at": "2026-08-02T13:40:11.422030+00:00"
+  },
+  "8f13cfea-5d7e-405d-ad4d-0627600fdeb6": {
+    "report_id": "8f13cfea-5d7e-405d-ad4d-0627600fdeb6",
+    "compliance_score": 33,
+    "summary": {
+      "total_controls": 6,
+      "met_controls": 2,
+      "partial_controls": 1,
+      "gap_controls": 3
+    },
+    "controls": [
+      {
+        "requirement_id": "GDPR-ART-5-1-F",
+        "name": "Article 5(1)(f) - Integrity and Confidentiality",
+        "framework": "GDPR",
+        "category": "Data Minimization & Security",
+        "description": "Personal data must be processed in a manner that ensures appropriate security, including protection against unauthorized or unlawful processing and against accidental loss, destruction or damage, using appropriate technical or organizational measures.",
+        "status": "MET",
+        "evidence_found": [
+          "Apex_Security_Policy.pdf, Section 1.0 Purpose and Scope",
+          "Apex_Security_Policy.pdf, guarantee of 100% customer data encryption both in transit and at rest using AES-256"
+        ],
+        "reasoning": "The provided evidence demonstrates that Apex Payments Inc. has a comprehensive Information Security and Data Protection Policy in place, which explicitly guarantees the encryption of 100% of customer data both in transit and at rest using AES-256. This policy applies to all employees, contractors, systems, and data, indicating a thorough approach to ensuring the integrity and confidentiality of personal data. The policy's emphasis on protecting the confidentiality, integrity, and availability of information, along with the specific technical measure of using AES-256 encryption, directly addresses the requirement for appropriate security measures to protect against unauthorized or unlawful processing and against accidental loss, destruction, or damage.",
+        "remediation": [
+          "Continue to monitor and update the Information Security and Data Protection Policy to ensure it remains effective and aligned with evolving security standards.",
+          "Regularly review and audit the implementation of the policy across all systems and teams to identify and address any deviations or weaknesses."
+        ]
+      },
+      {
+        "requirement_id": "GDPR-ART-32",
+        "name": "Article 32 - Security of Processing",
+        "framework": "GDPR",
+        "category": "Technical Controls",
+        "description": "Implementation of appropriate technical and organizational measures to ensure a level of security appropriate to the risk, including encryption of personal data, maintaining ongoing confidentiality, integrity, availability, and resilience of processing systems.",
+        "status": "MET",
+        "evidence_found": [
+          "Apex_Security_Policy.pdf, Section 1.0 Purpose and Scope",
+          "Apex_Security_Policy.pdf, guarantee of 100% customer data encryption both in transit and at rest using AES-256"
+        ],
+        "reasoning": "The provided evidence from the Apex_Security_Policy.pdf demonstrates a clear commitment to implementing technical and organizational measures to ensure the security of processing. Specifically, the policy guarantees that 100% of customer data is encrypted both in transit and at rest using AES-256, which directly addresses the requirement for encryption of personal data. Additionally, the policy emphasizes the importance of maintaining confidentiality, integrity, and availability of information, aligning with the principles of Article 32. The policy's applicability to all employees, contractors, systems, and data, along with its approval by Executive Management and annual review cycle, further solidifies the company's adherence to this requirement.",
+        "remediation": []
+      },
+      {
+        "requirement_id": "GDPR-ART-33",
+        "name": "Article 33 - Notification of Personal Data Breach",
+        "framework": "GDPR",
+        "category": "Incident Response",
+        "description": "In the case of a personal data breach, the controller shall without undue delay and, where feasible, not later than 72 hours after having become aware of it, notify the personal data breach to the supervisory authority.",
+        "status": "GAP",
+        "evidence_found": [],
+        "reasoning": "The provided company compliance context does not address the requirement of notifying the supervisory authority in the case of a personal data breach within 72 hours. The documents mention incident response and reporting of security incidents to the Security Team, but there is no mention of notifying the supervisory authority or a specific timeline for such notification. Therefore, the evidence does not demonstrate any coverage of this requirement.",
+        "remediation": [
+          "Develop a procedure for notifying the supervisory authority in the event of a personal data breach",
+          "Establish a timeline for notification, ensuring it is within 72 hours of becoming aware of the breach",
+          "Train employees and contractors on the new procedure to ensure compliance with Article 33"
+        ]
+      },
+      {
+        "requirement_id": "ISO-A-8-24",
+        "name": "Control A.8.24 - Use of Cryptography",
+        "framework": "ISO 27001",
+        "category": "Access Control",
+        "description": "Rules for the effective use of cryptography, including cryptographic key management, should be defined and implemented to protect the confidentiality, authenticity, and integrity of information.",
+        "status": "GAP",
+        "evidence_found": [],
+        "reasoning": "Audit evaluation timed out. Please retry or check API connectivity.",
+        "remediation": [
+          "Retry the compliance audit when API is available."
+        ]
+      },
+      {
+        "requirement_id": "ISO-A-8-20",
+        "name": "Control A.8.20 - Network Security",
+        "framework": "ISO 27001",
+        "category": "Network Security",
+        "description": "Networks and network devices should be secured, managed, and controlled to protect information in systems and applications.",
+        "status": "GAP",
+        "evidence_found": [],
+        "reasoning": "The provided company compliance context does not address network security, management, or control. The evidence focuses on backup, recovery, business continuity, and incident response but does not provide any details on securing networks and network devices to protect information in systems and applications.",
+        "remediation": [
+          "Develop and implement a comprehensive network security policy that includes measures to secure, manage, and control networks and network devices.",
+          "Conduct a risk assessment to identify potential network security threats and implement controls to mitigate these risks."
+        ]
+      },
+      {
+        "requirement_id": "ISO-A-5-36",
+        "name": "Control A.5.36 - Compliance with Policies",
+        "framework": "ISO 27001",
+        "category": "Incident Management",
+        "description": "The compliance of systems and processes with organization's information security policies and standards should be regularly reviewed.",
+        "status": "PARTIAL",
+        "evidence_found": [
+          "Document snippet #1 (Source: Apex_Security_Policy.pdf)",
+          "Document snippet #2 (Source: Apex_Security_Policy.pdf)",
+          "Document snippet #3 (Source: Apex_Security_Policy.pdf)"
+        ],
+        "reasoning": "The provided evidence demonstrates that the company has some policies and procedures in place related to incident management, such as backup and recovery processes, and incident response protocols. However, the evidence does not explicitly state that these policies and procedures are regularly reviewed for compliance with the organization's information security policies and standards. The fact that management acknowledges limitations in the current backup storage and restoration testing processes suggests that there may be some level of review or evaluation, but it is not explicitly stated that this is a regular review process. Therefore, the evidence only partially addresses the requirement.",
+        "remediation": [
+          "Develop a formal process for regular review of compliance with information security policies and standards",
+          "Include specific metrics and criteria for evaluating compliance in the review process",
+          "Document and maintain records of the review process and any resulting actions or improvements"
+        ]
+      }
+    ],
+    "metadata": {
+      "processing_time_seconds": 122.53,
+      "engine": "ANVESHA-AutoAuditor-v1.0"
+    },
+    "generated_at": "2026-08-02T13:40:45.884974+00:00"
+  },
+  "4e23ff1d-80f0-45b9-8a55-5bac587d79b6": {
+    "report_id": "4e23ff1d-80f0-45b9-8a55-5bac587d79b6",
+    "compliance_score": 0,
+    "summary": {
+      "total_controls": 6,
+      "met_controls": 0,
+      "partial_controls": 4,
+      "gap_controls": 2
+    },
+    "controls": [
+      {
+        "requirement_id": "GDPR-ART-5-1-F",
+        "name": "Article 5(1)(f) - Integrity and Confidentiality",
+        "framework": "GDPR",
+        "category": "Data Minimization & Security",
+        "description": "Personal data must be processed in a manner that ensures appropriate security, including protection against unauthorized or unlawful processing and against accidental loss, destruction or damage, using appropriate technical or organizational measures.",
+        "status": "PARTIAL",
+        "evidence_found": [
+          "Apex Payments guarantees that 100% of customer data is encrypted both in transit and at rest using AES-256",
+          "System backups are performed automatically every Sunday at 2:00 AM",
+          "Employees and contractors must immediately report suspected security incidents"
+        ],
+        "reasoning": "The company's security policy provides some measures to ensure the integrity and confidentiality of personal data, such as encrypting customer data using AES-256, performing regular backups, and having an incident response plan in place. However, the policy also mentions limitations, such as storing backups on the same local server rack as the primary database, which creates a shared physical failure domain, and not performing restoration testing in the last 18 months. These limitations indicate that the company's measures are not fully comprehensive, leaving room for potential risks and thus only partially addressing the requirement.",
+        "remediation": [
+          "Implement geographically separate backup storage to mitigate the risk of physical failure",
+          "Establish a recurring recovery-test schedule to ensure the integrity of backups"
+        ]
+      },
+      {
+        "requirement_id": "GDPR-ART-32",
+        "name": "Article 32 - Security of Processing",
+        "framework": "GDPR",
+        "category": "Technical Controls",
+        "description": "Implementation of appropriate technical and organizational measures to ensure a level of security appropriate to the risk, including encryption of personal data, maintaining ongoing confidentiality, integrity, availability, and resilience of processing systems.",
+        "status": "PARTIAL",
+        "evidence_found": [
+          "Apex Payments guarantees that 100% of customer data is encrypted both in transit and at rest using AES-256",
+          "System backups are performed automatically every Sunday at 2:00 AM to support recovery from accidental deletion, system failure, or operational disruption",
+          "Employees and contractors must immediately report suspected security incidents, unauthorized access, data exposure, malware, credential compromise, or abnormal system behavior to the Security Team"
+        ],
+        "reasoning": "The provided evidence demonstrates a commitment to implementing technical and organizational measures to ensure security, such as encrypting customer data and performing regular backups. Additionally, there is a policy for incident response. However, the evidence also highlights limitations and gaps, such as the lack of geographically separate backup storage and the absence of restoration testing in the last 18 months. These gaps indicate that while the company has some measures in place, they do not fully address the requirement for ensuring the ongoing confidentiality, integrity, availability, and resilience of processing systems.",
+        "remediation": [
+          "Implement geographically separate backup storage to mitigate the risk of shared physical failure domains",
+          "Establish a recurring recovery-test schedule to ensure the effectiveness of backup and recovery processes",
+          "Conduct regular security audits to identify and address potential vulnerabilities in the processing systems"
+        ]
+      },
+      {
+        "requirement_id": "GDPR-ART-33",
+        "name": "Article 33 - Notification of Personal Data Breach",
+        "framework": "GDPR",
+        "category": "Incident Response",
+        "description": "In the case of a personal data breach, the controller shall without undue delay and, where feasible, not later than 72 hours after having become aware of it, notify the personal data breach to the supervisory authority.",
+        "status": "GAP",
+        "evidence_found": [],
+        "reasoning": "The provided company compliance context does not mention the requirement for notifying the supervisory authority in the case of a personal data breach within 72 hours. The documents provided focus on information security, data protection, backup, recovery, and business continuity, as well as incident response, but do not specifically address the notification of personal data breaches to the supervisory authority as required by Article 33.",
+        "remediation": [
+          "Develop a procedure for notifying the supervisory authority in the event of a personal data breach",
+          "Establish a timeline for notification, ensuring it is done without undue delay and, where feasible, not later than 72 hours after becoming aware of the breach",
+          "Train employees and contractors on the new procedure to ensure compliance with Article 33"
+        ]
+      },
+      {
+        "requirement_id": "ISO-A-8-24",
+        "name": "Control A.8.24 - Use of Cryptography",
+        "framework": "ISO 27001",
+        "category": "Access Control",
+        "description": "Rules for the effective use of cryptography, including cryptographic key management, should be defined and implemented to protect the confidentiality, authenticity, and integrity of information.",
+        "status": "PARTIAL",
+        "evidence_found": [
+          "Apex Payments guarantees that 100% of customer data is encrypted both in transit and at rest using AES-256",
+          "This policy establishes the minimum information security and data protection requirements for Apex Payments Inc."
+        ],
+        "reasoning": "The provided evidence partially addresses the requirement for the use of cryptography. It mentions that Apex Payments guarantees the encryption of 100% of customer data both in transit and at rest using AES-256, which demonstrates an understanding of the need for cryptographic protection. However, it lacks detailed rules for the effective use of cryptography, including cryptographic key management, which is a crucial aspect of protecting the confidentiality, authenticity, and integrity of information. The policy primarily focuses on the overall information security and data protection requirements without delving into the specifics of cryptographic key management.",
+        "remediation": [
+          "Develop and implement detailed cryptographic key management policies and procedures",
+          "Include guidelines for key generation, distribution, storage, rotation, and revocation in the existing security policy"
+        ]
+      },
+      {
+        "requirement_id": "ISO-A-8-20",
+        "name": "Control A.8.20 - Network Security",
+        "framework": "ISO 27001",
+        "category": "Network Security",
+        "description": "Networks and network devices should be secured, managed, and controlled to protect information in systems and applications.",
+        "status": "GAP",
+        "evidence_found": [],
+        "reasoning": "The provided company compliance context does not address the requirement of securing, managing, and controlling networks and network devices to protect information in systems and applications. The evidence focuses on backup and recovery, incident response, information security and data protection policy, and encryption of customer data, but does not provide any details on network security measures, such as firewall configurations, access controls, or network segmentation.",
+        "remediation": [
+          "Develop and implement a comprehensive network security policy that outlines measures to secure, manage, and control networks and network devices.",
+          "Conduct a network security risk assessment to identify vulnerabilities and implement controls to mitigate them.",
+          "Implement network security measures such as firewalls, intrusion detection and prevention systems, and access controls to protect information in systems and applications."
+        ]
+      },
+      {
+        "requirement_id": "ISO-A-5-36",
+        "name": "Control A.5.36 - Compliance with Policies",
+        "framework": "ISO 27001",
+        "category": "Incident Management",
+        "description": "The compliance of systems and processes with organization's information security policies and standards should be regularly reviewed.",
+        "status": "PARTIAL",
+        "evidence_found": [
+          "Document snippet #1 (Source: Apex_Security_Policy.pdf)",
+          "Document snippet #2 (Source: Apex_Security_Policy.pdf)"
+        ],
+        "reasoning": "The provided evidence demonstrates that Apex Payments Inc. has established an Information Security and Data Protection Policy, which includes guidelines for incident response, backup and recovery, and data protection. The policy applies to all employees, contractors, systems, and data, and it outlines the company's commitment to protecting the confidentiality, integrity, and availability of information. However, the evidence does not explicitly mention regular reviews of system and process compliance with the organization's information security policies and standards. While the policy has an annual review cycle, there is no clear indication that the compliance of systems and processes is regularly reviewed, which is the primary requirement of Control A.5.36.",
+        "remediation": [
+          "Develop a procedure to regularly review system and process compliance with the organization's information security policies and standards",
+          "Establish a schedule for conducting these reviews, such as quarterly or bi-annually, to ensure ongoing compliance"
+        ]
+      }
+    ],
+    "metadata": {
+      "processing_time_seconds": 33.12,
+      "engine": "ANVESHA-AutoAuditor-v1.0"
+    },
+    "generated_at": "2026-08-02T13:57:12.932761+00:00"
+  },
+  "09c4f61c-99d5-406e-adce-492d9cb326b0": {
+    "report_id": "09c4f61c-99d5-406e-adce-492d9cb326b0",
+    "compliance_score": 0,
+    "summary": {
+      "total_controls": 6,
+      "met_controls": 0,
+      "partial_controls": 4,
+      "gap_controls": 2
+    },
+    "controls": [
+      {
+        "requirement_id": "GDPR-ART-5-1-F",
+        "name": "Article 5(1)(f) - Integrity and Confidentiality",
+        "framework": "GDPR",
+        "category": "Data Minimization & Security",
+        "description": "Personal data must be processed in a manner that ensures appropriate security, including protection against unauthorized or unlawful processing and against accidental loss, destruction or damage, using appropriate technical or organizational measures.",
+        "status": "PARTIAL",
+        "evidence_found": [
+          "Apex Payments guarantees that 100% of customer data is encrypted both in transit and at rest using AES-256",
+          "System backups are performed automatically every Sunday at 2:00 AM",
+          "Employees and contractors must immediately report suspected security incidents"
+        ],
+        "reasoning": "The provided evidence demonstrates that Apex Payments has implemented certain security measures, such as encrypting customer data and performing regular backups. Additionally, the company has an incident response plan in place. However, the evidence also highlights some limitations and potential risks, such as storing backups on the same local server rack as the primary database and not performing restoration testing in the last 18 months. While these measures partially address the requirement for ensuring appropriate security and protection against unauthorized or unlawful processing, accidental loss, destruction, or damage, they do not provide complete assurance of the company's ability to guarantee the integrity and confidentiality of personal data.",
+        "remediation": [
+          "Implement geographically separate backup storage to mitigate the risk of shared physical failure domain",
+          "Establish a recurring recovery-test schedule to ensure the effectiveness of backup and restoration processes",
+          "Conduct regular security audits and risk assessments to identify and address potential vulnerabilities"
+        ]
+      },
+      {
+        "requirement_id": "GDPR-ART-32",
+        "name": "Article 32 - Security of Processing",
+        "framework": "GDPR",
+        "category": "Technical Controls",
+        "description": "Implementation of appropriate technical and organizational measures to ensure a level of security appropriate to the risk, including encryption of personal data, maintaining ongoing confidentiality, integrity, availability, and resilience of processing systems.",
+        "status": "PARTIAL",
+        "evidence_found": [
+          "Apex Payments guarantees that 100% of customer data is encrypted both in transit and at rest using AES-256",
+          "System backups are performed automatically every Sunday at 2:00 AM to support recovery from accidental deletion, system failure, or operational disruption",
+          "Employees and contractors must immediately report suspected security incidents, unauthorized access, data exposure, malware, credential compromise, or abnormal system behavior to the Security Team"
+        ],
+        "reasoning": "The provided evidence demonstrates that Apex Payments has implemented certain technical and organizational measures to ensure security, such as encrypting customer data using AES-256, performing regular system backups, and having an incident response process in place. However, the evidence also highlights limitations and gaps, such as the lack of geographically separate backup storage, no restoration testing in the last 18 months, and no explicit mention of ongoing confidentiality, integrity, availability, and resilience of processing systems. These limitations indicate that while the company has made efforts to address the requirement, there are still areas that need improvement to fully meet the requirement.",
+        "remediation": [
+          "Conduct a thorough risk assessment to identify and address potential security risks",
+          "Implement geographically separate backup storage to reduce the risk of data loss",
+          "Establish a recurring recovery-test schedule to ensure backup data integrity",
+          "Develop and implement a comprehensive plan to ensure ongoing confidentiality, integrity, availability, and resilience of processing systems"
+        ]
+      },
+      {
+        "requirement_id": "GDPR-ART-33",
+        "name": "Article 33 - Notification of Personal Data Breach",
+        "framework": "GDPR",
+        "category": "Incident Response",
+        "description": "In the case of a personal data breach, the controller shall without undue delay and, where feasible, not later than 72 hours after having become aware of it, notify the personal data breach to the supervisory authority.",
+        "status": "GAP",
+        "evidence_found": [],
+        "reasoning": "The provided company compliance context does not mention the requirement for notifying the supervisory authority in the case of a personal data breach within 72 hours. The documents provided focus on information security, data protection, backup, recovery, and business continuity, as well as incident response, but do not specifically address the notification of personal data breaches to the supervisory authority as required by Article 33.",
+        "remediation": [
+          "Develop a procedure for notifying the supervisory authority in the event of a personal data breach",
+          "Establish a timeline for notification, ensuring it is done without undue delay and, where feasible, not later than 72 hours after becoming aware of the breach",
+          "Train employees and contractors on the new procedure to ensure compliance with Article 33"
+        ]
+      },
+      {
+        "requirement_id": "ISO-A-8-24",
+        "name": "Control A.8.24 - Use of Cryptography",
+        "framework": "ISO 27001",
+        "category": "Access Control",
+        "description": "Rules for the effective use of cryptography, including cryptographic key management, should be defined and implemented to protect the confidentiality, authenticity, and integrity of information.",
+        "status": "PARTIAL",
+        "evidence_found": [
+          "Apex Payments guarantees that 100% of customer data is encrypted both in transit and at rest using AES-256",
+          "This policy establishes the minimum information security and data protection requirements for Apex Payments Inc."
+        ],
+        "reasoning": "The provided evidence partially addresses the requirement for the use of cryptography. It mentions that Apex Payments guarantees the encryption of 100% of customer data using AES-256, both in transit and at rest. However, it lacks detailed rules for the effective use of cryptography, including cryptographic key management, which is a crucial aspect of protecting the confidentiality, authenticity, and integrity of information. The policy does establish a foundation for information security and data protection but does not fully implement all aspects of cryptographic management as required.",
+        "remediation": [
+          "Develop and implement detailed cryptographic key management policies and procedures",
+          "Conduct regular reviews and updates of the cryptographic protocols and key management practices to ensure they remain effective and aligned with industry standards"
+        ]
+      },
+      {
+        "requirement_id": "ISO-A-8-20",
+        "name": "Control A.8.20 - Network Security",
+        "framework": "ISO 27001",
+        "category": "Network Security",
+        "description": "Networks and network devices should be secured, managed, and controlled to protect information in systems and applications.",
+        "status": "GAP",
+        "evidence_found": [],
+        "reasoning": "The provided company compliance context does not address the requirement of securing, managing, and controlling networks and network devices to protect information in systems and applications. The evidence focuses on backup and recovery, incident response, information security and data protection policy, and encryption of customer data, but does not provide any details on network security measures, such as firewall configurations, access controls, or network segmentation.",
+        "remediation": [
+          "Develop and implement a comprehensive network security policy that outlines measures to secure, manage, and control networks and network devices.",
+          "Conduct a network security risk assessment to identify vulnerabilities and implement controls to mitigate them.",
+          "Implement network security measures such as firewalls, intrusion detection and prevention systems, and access controls to protect information in systems and applications."
+        ]
+      },
+      {
+        "requirement_id": "ISO-A-5-36",
+        "name": "Control A.5.36 - Compliance with Policies",
+        "framework": "ISO 27001",
+        "category": "Incident Management",
+        "description": "The compliance of systems and processes with organization's information security policies and standards should be regularly reviewed.",
+        "status": "PARTIAL",
+        "evidence_found": [
+          "Document snippet #1 (Source: Apex_Security_Policy.pdf)",
+          "Document snippet #2 (Source: Apex_Security_Policy.pdf)"
+        ],
+        "reasoning": "The provided evidence demonstrates that the company has established information security policies and standards, such as the Apex Payments Inc. Information Security and Data Protection Policy. This policy outlines the minimum security requirements for all employees, contractors, systems, and data. Additionally, it mentions the review cycle as annual, indicating a regular review process. However, the evidence does not explicitly state that the compliance of systems and processes with these policies is regularly reviewed, which is the core requirement of Control A.5.36. While there are mentions of monitoring backup completion, escalation procedures, and incident response, the direct link to regular compliance review of systems and processes with the organization's information security policies is not clearly established.",
+        "remediation": [
+          "Develop a formal process to regularly review the compliance of systems and processes with the organization's information security policies and standards.",
+          "Include specific metrics or criteria to measure compliance and identify areas for improvement in the regular review process."
+        ]
+      }
+    ],
+    "metadata": {
+      "processing_time_seconds": 23.33,
+      "engine": "ANVESHA-AutoAuditor-v1.0"
+    },
+    "generated_at": "2026-08-02T13:57:46.295685+00:00"
+  }
+}
