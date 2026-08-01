@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ANVESHA — Compliance Intelligence Platform</title>
+    <meta name="description" content="Multi-Modal Knowledge Graph Enterprise Compliance Intelligence System. GraphRAG-powered compliance Q&A with zero hallucinations.">
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+</head>
+<body>
+    <div class="app-layout">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-brand">
+                <div class="header-logo">A</div>
+                <div>
+                    <div class="header-title">ANVESHA</div>
+                    <div class="header-subtitle">Compliance Intelligence Platform</div>
+                </div>
+            </div>
+            <div class="header-status">
+                <div class="status-indicator">
+                    <span class="status-dot" id="neo4jStatus"></span>
+                    <span>Neo4j</span>
+                </div>
+                <div class="status-indicator">
+                    <span class="status-dot" id="groqStatus"></span>
+                    <span>Groq</span>
+                </div>
+                <div class="status-indicator">
+                    <span class="status-dot" id="geminiStatus"></span>
+                    <span>Gemini</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Left Sidebar — Documents -->
+        <aside class="sidebar-left">
+            <div class="sidebar-header">
+                <span class="sidebar-title">📄 Documents</span>
+                <span class="doc-badge" id="docCount">0</span>
+            </div>
+
+            <!-- Upload Zone -->
+            <div class="upload-zone" id="uploadZone">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">
+                    <strong>Drop files here</strong> or click to upload
+                </div>
+                <div class="upload-formats">PDF • Audio • Images • Tables</div>
+                <input type="file" id="fileInput" hidden accept=".pdf,.wav,.mp3,.m4a,.ogg,.flac,.png,.jpg,.jpeg,.svg,.webp">
+            </div>
+
+            <!-- Upload Progress -->
+            <div class="upload-progress" id="uploadProgress">
+                <div class="upload-status" id="uploadStatus">Uploading...</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Document List -->
+            <div class="document-list" id="documentList">
+                <!-- Documents populated by JS -->
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Tab Bar -->
+            <div class="tab-bar">
+                <div class="tab active" id="tabChat" onclick="switchTab('chat')">💬 Chat</div>
+                <div class="tab" id="tabGraph" onclick="switchTab('graph')">🔗 Knowledge Graph</div>
+            </div>
+
+            <!-- Chat Panel -->
+            <div class="chat-panel" id="chatPanel">
+                <div class="chat-messages" id="chatMessages">
+                    <!-- Welcome Screen -->
+                    <div class="welcome-screen" id="welcomeScreen">
+                        <div class="welcome-icon">🔍</div>
+                        <div class="welcome-title">Ask Compliance Questions</div>
+                        <div class="welcome-desc">
+                            Upload compliance documents, then ask questions.
+                            Every answer is backed by traceable citations from your knowledge graph.
+                            No hallucinations — if we can't verify it, we'll tell you.
+                        </div>
+                        <div class="quick-actions">
+                            <div class="quick-action" onclick="askQuestion('What are the key GDPR requirements for data processing?')">
+                                GDPR Requirements
+                            </div>
+                            <div class="quick-action" onclick="askQuestion('What controls are required for ISO 27001 compliance?')">
+                                ISO 27001 Controls
+                            </div>
+                            <div class="quick-action" onclick="askQuestion('What are the data breach notification requirements?')">
+                                Breach Notification
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chat Input -->
+                <div class="chat-input-container">
+                    <div class="chat-input-wrapper">
+                        <textarea class="chat-input" id="chatInput"
+                            placeholder="Ask a compliance question..."
+                            rows="1"
+                            onkeydown="handleKeyDown(event)"></textarea>
+                        <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Graph Panel -->
+            <div class="graph-panel" id="graphPanel">
+                <div class="graph-container" id="graphContainer"></div>
+                <div class="graph-legend" id="graphLegend">
+                    <div class="legend-item"><span class="legend-dot" style="background:#ff4757"></span> Regulation</div>
+                    <div class="legend-item"><span class="legend-dot" style="background:#ff9100"></span> Requirement</div>
+                    <div class="legend-item"><span class="legend-dot" style="background:#00d4ff"></span> Control</div>
+                    <div class="legend-item"><span class="legend-dot" style="background:#7b2ff7"></span> System</div>
+                    <div class="legend-item"><span class="legend-dot" style="background:#00e676"></span> Evidence</div>
+                    <div class="legend-item"><span class="legend-dot" style="background:#ff6b9d"></span> Policy</div>
+                    <div class="legend-item"><span class="legend-dot" style="background:#ffd32a"></span> Person</div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Right Sidebar — Details -->
+        <aside class="sidebar-right">
+            <div class="detail-section">
+                <div class="detail-title">📊 System Stats</div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="statNodes">0</div>
+                        <div class="stat-label">Entities</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statEdges">0</div>
+                        <div class="stat-label">Relations</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statDocs">0</div>
+                        <div class="stat-label">Documents</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="statQueries">0</div>
+                        <div class="stat-label">Queries</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <div class="detail-title">🎯 Last Answer</div>
+                <div id="lastAnswerDetails">
+                    <p style="font-size:0.8rem; color:var(--text-muted)">
+                        Ask a question to see answer details here.
+                    </p>
+                </div>
+            </div>
+
+            <div class="detail-section" style="flex:1; overflow:auto;">
+                <div class="detail-title">📋 Citations</div>
+                <div id="citationsList" style="font-size:0.8rem; color:var(--text-muted)">
+                    No citations yet.
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
