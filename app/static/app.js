@@ -7,6 +7,7 @@
 let queryCount = 0;
 let graphNetwork = null;
 let currentTab = 'chat';
+let lastReportId = null;
 
 // === Entity type colors for graph ===
 const ENTITY_COLORS = {
@@ -683,6 +684,15 @@ function renderAuditReport(report) {
     partialCount.textContent = report.summary?.partial_controls || 0;
     gapCount.textContent = report.summary?.gap_controls || 0;
 
+    // Save report ID and enable download button
+    lastReportId = report.report_id;
+    const downloadBtn = document.getElementById('downloadAuditBtn');
+    if (downloadBtn) {
+        downloadBtn.disabled = false;
+        downloadBtn.style.opacity = '1';
+        downloadBtn.style.cursor = 'pointer';
+    }
+
     const scoreCircle = document.querySelector('.audit-score-circle');
     if (scoreCircle) {
         let c1 = '#ff4757';
@@ -763,5 +773,26 @@ function toggleAuditDetails(id) {
     const el = document.getElementById(id);
     if (el) {
         el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+    }
+}
+
+async function downloadAuditReport() {
+    if (!lastReportId) return;
+    try {
+        const res = await fetch(`/api/audit/report/${lastReportId}/export`);
+        if (!res.ok) throw new Error('Failed to export compliance report');
+        const text = await res.text();
+
+        const blob = new Blob([text], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `anvesha_compliance_report_${lastReportId.substring(0, 8)}.md`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        showToast('Compliance report downloaded successfully!', 'success');
+    } catch (e) {
+        showToast(`Download failed: ${e.message}`, 'error');
     }
 }

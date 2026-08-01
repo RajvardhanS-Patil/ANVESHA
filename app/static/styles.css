@@ -1174,3 +1174,26 @@ body::before {
     color: var(--text-primary);
     line-height: 1.6;
 }
+
+.audit-download-btn {
+    padding: var(--space-sm) var(--space-lg);
+    border-radius: var(--radius-md);
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: var(--transition-fast);
+}
+
+.audit-download-btn:hover:not(:disabled) {
+    border-color: var(--accent-cyan);
+    color: var(--accent-cyan);
+    background: rgba(0, 212, 255, 0.03);
+}
+
+.audit-download-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
