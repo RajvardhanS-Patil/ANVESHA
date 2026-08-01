@@ -434,17 +434,26 @@ function switchTab(tab) {
     currentTab = tab;
     document.getElementById('tabChat').className = 'tab' + (tab === 'chat' ? ' active' : '');
     document.getElementById('tabGraph').className = 'tab' + (tab === 'graph' ? ' active' : '');
+    document.getElementById('tabAudit').className = 'tab' + (tab === 'audit' ? ' active' : '');
 
     const chatPanel = document.getElementById('chatPanel');
     const graphPanel = document.getElementById('graphPanel');
+    const auditPanel = document.getElementById('auditPanel');
 
     if (tab === 'chat') {
         chatPanel.style.display = 'flex';
         graphPanel.classList.remove('active');
-    } else {
+        auditPanel.style.display = 'none';
+    } else if (tab === 'graph') {
         chatPanel.style.display = 'none';
         graphPanel.classList.add('active');
+        auditPanel.style.display = 'none';
         loadGraph();
+    } else {
+        chatPanel.style.display = 'none';
+        graphPanel.classList.remove('active');
+        auditPanel.style.display = 'flex';
+        loadAuditReports();
     }
 }
 
@@ -544,4 +553,144 @@ function showToast(message, type = 'info') {
         toast.style.transition = '0.3s ease';
         setTimeout(() => toast.remove(), 300);
     }, 4000);
+}
+
+// === Compliance Audit ===
+async function loadAuditReports() {
+    try {
+        const res = await fetch('/api/audit/reports');
+        const data = await res.json();
+        if (data.reports && data.reports.length > 0) {
+            const latestId = data.reports[0].report_id;
+            const reportRes = await fetch(`/api/audit/report/${latestId}`);
+            const reportData = await reportRes.json();
+            renderAuditReport(reportData);
+        }
+    } catch (e) {
+        console.error('Failed to load audit reports:', e);
+    }
+}
+
+async function runComplianceAudit() {
+    const runBtn = document.getElementById('runAuditBtn');
+    const loader = document.getElementById('auditLoader');
+    const emptyState = document.getElementById('auditEmptyState');
+    const dashboard = document.getElementById('auditSummaryDashboard');
+    const results = document.getElementById('auditResults');
+
+    runBtn.disabled = true;
+    loader.style.display = 'flex';
+    if (emptyState) emptyState.style.display = 'none';
+
+    try {
+        const res = await fetch('/api/audit/run', { method: 'POST' });
+        const data = await res.json();
+        renderAuditReport(data);
+        showToast('Compliance audit completed successfully!', 'success');
+        refreshStatus();
+    } catch (e) {
+        showToast(`Audit failed: ${e.message}`, 'error');
+        if (emptyState && dashboard.style.display !== 'flex') {
+            emptyState.style.display = 'block';
+        }
+    } finally {
+        runBtn.disabled = false;
+        loader.style.display = 'none';
+    }
+}
+
+function renderAuditReport(report) {
+    const scoreVal = document.getElementById('auditScoreVal');
+    const metCount = document.getElementById('auditMetCount');
+    const partialCount = document.getElementById('auditPartialCount');
+    const gapCount = document.getElementById('auditGapCount');
+    const dashboard = document.getElementById('auditSummaryDashboard');
+    const results = document.getElementById('auditResults');
+
+    scoreVal.textContent = `${report.compliance_score || 0}%`;
+    metCount.textContent = report.summary?.met_controls || 0;
+    partialCount.textContent = report.summary?.partial_controls || 0;
+    gapCount.textContent = report.summary?.gap_controls || 0;
+
+    const scoreCircle = document.querySelector('.audit-score-circle');
+    if (scoreCircle) {
+        let c1 = '#ff4757';
+        let c2 = '#ff9100';
+        if (report.compliance_score >= 80) {
+            c1 = '#00d4ff'; c2 = '#00e676';
+        } else if (report.compliance_score >= 40) {
+            c1 = '#ff9100'; c2 = '#7b2ff7';
+        }
+        scoreCircle.style.background = `radial-gradient(circle, var(--bg-secondary) 60%, transparent 61%), linear-gradient(135deg, ${c1}, ${c2})`;
+    }
+
+    dashboard.style.display = 'flex';
+
+    if (report.controls && report.controls.length > 0) {
+        results.innerHTML = `
+            <div class="audit-results-list">
+                ${report.controls.map((control, idx) => {
+                    const statusClass = control.status.toLowerCase();
+                    const statusLabel = control.status.toUpperCase();
+                    const detailsId = `audit-details-${idx}`;
+                    
+                    const evidenceHtml = control.evidence_found && control.evidence_found.length > 0 
+                        ? control.evidence_found.map(ev => `<li>${escapeHtml(ev)}</li>`).join('')
+                        : '<li>No direct evidence matched. Baseline requirements check.</li>';
+
+                    const remediationHtml = control.remediation && control.remediation.length > 0
+                        ? control.remediation.map(rem => `
+                            <li class="remediation-item">
+                                <input type="checkbox" class="remediation-checkbox" id="rem-${idx}-${escapeHtml(rem.substring(0, 10))}">
+                                <span>${escapeHtml(rem)}</span>
+                            </li>
+                        `).join('')
+                        : '<li>✓ No remediation required. Control fully satisfied.</li>';
+
+                    return `
+                        <div class="audit-item">
+                            <div class="audit-item-header" onclick="toggleAuditDetails('${detailsId}')">
+                                <div class="audit-item-title-block">
+                                    <div class="audit-item-title">${escapeHtml(control.name)}</div>
+                                    <div class="audit-item-subtitle">${escapeHtml(control.framework)} • ${escapeHtml(control.category)}</div>
+                                </div>
+                                <span class="audit-badge ${statusClass}">${statusLabel}</span>
+                            </div>
+                            <div class="audit-item-details" id="${detailsId}" style="display: none; flex-direction: column;">
+                                <div class="audit-detail-section">
+                                    <div class="audit-detail-title">Description</div>
+                                    <div class="audit-detail-content">${escapeHtml(control.description)}</div>
+                                </div>
+                                <div class="audit-detail-section">
+                                    <div class="audit-detail-title">Evidence Found</div>
+                                    <div class="audit-detail-content">
+                                        <ul style="padding-left:1.2rem">${evidenceHtml}</ul>
+                                    </div>
+                                </div>
+                                <div class="audit-detail-section">
+                                    <div class="audit-detail-title">Audit Reasoning</div>
+                                    <div class="audit-detail-content">${escapeHtml(control.reasoning)}</div>
+                                </div>
+                                <div class="audit-detail-section">
+                                    <div class="audit-detail-title">Remediation Roadmap</div>
+                                    <div class="audit-detail-content">
+                                        <ul class="remediation-list">${remediationHtml}</ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    } else {
+        results.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:2rem;">No controls analyzed in this report.</p>';
+    }
+}
+
+function toggleAuditDetails(id) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+    }
 }

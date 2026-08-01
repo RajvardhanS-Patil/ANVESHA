@@ -72,6 +72,7 @@
             <div class="tab-bar">
                 <div class="tab active" id="tabChat" onclick="switchTab('chat')">💬 Chat</div>
                 <div class="tab" id="tabGraph" onclick="switchTab('graph')">🔗 Knowledge Graph</div>
+                <div class="tab" id="tabAudit" onclick="switchTab('audit')">📋 Compliance Audit</div>
             </div>
 
             <!-- Chat Panel -->
@@ -123,6 +124,50 @@
                     <div class="legend-item"><span class="legend-dot" style="background:#00e676"></span> Evidence</div>
                     <div class="legend-item"><span class="legend-dot" style="background:#ff6b9d"></span> Policy</div>
                     <div class="legend-item"><span class="legend-dot" style="background:#ffd32a"></span> Person</div>
+                </div>
+            </div>
+
+            <!-- Audit Panel -->
+            <div class="audit-panel" id="auditPanel" style="display: none;">
+                <div class="audit-header-actions">
+                    <button class="audit-run-btn" id="runAuditBtn" onclick="runComplianceAudit()">Run Compliance Audit</button>
+                    <div class="audit-loader" id="auditLoader" style="display: none;">
+                        <div class="spinner"></div>
+                        <span>Evaluating compliance controls...</span>
+                    </div>
+                </div>
+
+                <div class="audit-summary-dashboard" id="auditSummaryDashboard" style="display: none;">
+                    <div class="audit-summary-score">
+                        <div class="audit-score-circle">
+                            <span class="audit-score-value" id="auditScoreVal">0%</span>
+                            <span class="audit-score-label">Compliance Score</span>
+                        </div>
+                    </div>
+                    <div class="audit-summary-stats">
+                        <div class="audit-stat-card met">
+                            <div class="audit-stat-count" id="auditMetCount">0</div>
+                            <div class="audit-stat-label">Controls Met</div>
+                        </div>
+                        <div class="audit-stat-card partial">
+                            <div class="audit-stat-count" id="auditPartialCount">0</div>
+                            <div class="audit-stat-label">Partial Gaps</div>
+                        </div>
+                        <div class="audit-stat-card gap">
+                            <div class="audit-stat-count" id="auditGapCount">0</div>
+                            <div class="audit-stat-label">Critical Gaps</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="audit-results" id="auditResults">
+                    <div class="audit-empty-state" id="auditEmptyState">
+                        <div class="audit-empty-icon">📋</div>
+                        <div class="audit-empty-title">Compliance Gap Analysis</div>
+                        <div class="audit-empty-desc">
+                            Click "Run Compliance Audit" to run an automated check of safety, privacy, and regulatory controls.
+                        </div>
+                    </div>
                 </div>
             </div>
         </main>
