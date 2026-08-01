@@ -24,6 +24,7 @@ class VerifiedQueryRequest(BaseModel):
     question: str = Field(..., description="The compliance question")
     k_hops: Optional[int] = Field(default=None)
     top_k_seeds: Optional[int] = Field(default=None)
+    debate_mode: Optional[bool] = Field(default=False)
 
 
 @router.post("/query/verified")
@@ -38,12 +39,26 @@ async def verified_compliance_query(request: VerifiedQueryRequest):
     4. Cross-provider verification (Gemini)
     5. Strip unsupported claims or abstain
 
+    Or, in Debate Mode:
+    1. GraphRAG retrieval
+    2. Advocate (Groq) vs Skeptic (Groq) debate
+    3. Gemini Judge adjudication and verdict
+
     Returns verified answer with confidence and evidence bundle.
     """
     if not request.question or not request.question.strip():
         raise HTTPException(status_code=400, detail="Question cannot be empty")
 
-    logger.info(f"Verified query: {request.question[:100]}")
+    logger.info(f"Verified query: {request.question[:100]} (debate={request.debate_mode})")
+
+    if request.debate_mode:
+        from app.retrieval.debate import run_compliance_debate
+        debate_result = await run_compliance_debate(
+            question=request.question,
+            k_hops=request.k_hops,
+            top_k_seeds=request.top_k_seeds,
+        )
+        return debate_result
 
     # Step 1: GraphRAG retrieval + generation
     graphrag_result = await query_graphrag(

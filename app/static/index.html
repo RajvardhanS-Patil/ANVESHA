@@ -110,6 +110,12 @@
                             onkeydown="handleKeyDown(event)"></textarea>
                         <button class="send-btn" id="sendBtn" onclick="sendMessage()">➤</button>
                     </div>
+                    <div class="chat-options" style="margin-top: 8px; display: flex; align-items: center; justify-content: flex-start;">
+                        <label class="debate-toggle" style="display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--text-secondary); cursor: pointer; user-select: none;">
+                            <input type="checkbox" id="debateToggle" style="accent-color: var(--accent-cyan); cursor: pointer;">
+                            <span>⚖️ Debate Mode (Multi-Agent Audit)</span>
+                        </label>
+                    </div>
                 </div>
             </div>
 

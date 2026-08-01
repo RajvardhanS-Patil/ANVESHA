@@ -221,6 +221,10 @@ async function sendMessage() {
     const question = input.value.trim();
     if (!question) return;
 
+    // Check debate mode checkbox
+    const debateToggle = document.getElementById('debateToggle');
+    const debateMode = debateToggle ? debateToggle.checked : false;
+
     // Hide welcome screen
     const welcome = document.getElementById('welcomeScreen');
     if (welcome) welcome.style.display = 'none';
@@ -232,6 +236,15 @@ async function sendMessage() {
 
     // Show typing indicator
     const typingId = addTypingIndicator();
+    const typingMsg = document.getElementById(typingId);
+    if (typingMsg && debateMode) {
+        typingMsg.querySelector('.message-content').innerHTML = `
+            <div style="display:flex;align-items:center;gap:10px;font-size:0.85rem;color:var(--text-secondary);">
+                <div class="loading-spinner" style="width:14px;height:14px;"></div>
+                <span>Orchestrating agent debate (Advocate vs Skeptic)...</span>
+            </div>
+        `;
+    }
 
     // Disable send button
     const sendBtn = document.getElementById('sendBtn');
@@ -241,7 +254,7 @@ async function sendMessage() {
         const res = await fetch('/api/query/verified', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ question }),
+            body: JSON.stringify({ question, debate_mode: debateMode }),
         });
 
         const data = await res.json();
@@ -257,7 +270,7 @@ async function sendMessage() {
         const citations = data.citations || [];
         const answerId = data.answer_id;
 
-        addAssistantMessage(answer, confidence, citations, answerId);
+        addAssistantMessage(answer, confidence, citations, answerId, data);
         updateAnswerDetails(data);
         updateCitations(citations);
 
@@ -284,13 +297,58 @@ function addMessage(text, role) {
     container.scrollTop = container.scrollHeight;
 }
 
-function addAssistantMessage(text, confidence, citations, answerId) {
+function addAssistantMessage(text, confidence, citations, answerId, debateData = null) {
     const container = document.getElementById('chatMessages');
     const msg = document.createElement('div');
     msg.className = 'message assistant';
 
-    // Format text with markdown-like rendering
-    let formatted = formatAnswer(text);
+    let formatted = '';
+
+    // Handle debate mode formatting
+    if (debateData && debateData.debate_mode) {
+        const verdictClass = debateData.verdict.toLowerCase();
+        const verdictLabel = debateData.verdict.toUpperCase();
+        const randId = Math.random().toString(36).substring(2, 7);
+        const advocateId = `advocate-args-${randId}`;
+        const skepticId = `skeptic-args-${randId}`;
+
+        const verdictBanner = `
+            <div class="debate-verdict-banner ${verdictClass}">
+                <div class="verdict-header-row">
+                    <strong style="color:var(--text-primary); font-size:0.95rem;">⚖️ Adjudicator Verdict</strong>
+                    <span class="verdict-badge ${verdictClass}">${verdictLabel}</span>
+                </div>
+                <div class="verdict-summary-text" style="margin-top:4px;">${formatAnswer(debateData.answer)}</div>
+            </div>
+        `;
+
+        const debateTranscript = `
+            <div class="debate-container">
+                <div class="debate-agent-card advocate">
+                    <div class="debate-agent-header" onclick="toggleDebateCard('${advocateId}')">
+                        <span>💙 Advocate Argument (Pro-Compliance)</span>
+                        <span>▼</span>
+                    </div>
+                    <div class="debate-agent-content" id="${advocateId}" style="display:none; flex-direction:column;">
+                        ${formatAnswer(debateData.advocate_argument)}
+                    </div>
+                </div>
+                <div class="debate-agent-card skeptic">
+                    <div class="debate-agent-header" onclick="toggleDebateCard('${skepticId}')">
+                        <span>💗 Skeptic Argument (Anti-Compliance)</span>
+                        <span>▼</span>
+                    </div>
+                    <div class="debate-agent-content" id="${skepticId}" style="display:none; flex-direction:column;">
+                        ${formatAnswer(debateData.skeptic_argument)}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        formatted = verdictBanner + debateTranscript;
+    } else {
+        formatted = formatAnswer(text);
+    }
 
     // Confidence bar
     const confClass = confidence >= 70 ? 'high' : confidence >= 40 ? 'medium' : 'low';
@@ -302,7 +360,7 @@ function addAssistantMessage(text, confidence, citations, answerId) {
     ).join('');
 
     msg.innerHTML = `
-        <div class="message-content">
+        <div class="message-content" style="width: 100%;">
             ${formatted}
             ${citationTags ? `<div style="margin-top:0.5rem">${citationTags}</div>` : ''}
         </div>
@@ -318,6 +376,19 @@ function addAssistantMessage(text, confidence, citations, answerId) {
     `;
     container.appendChild(msg);
     container.scrollTop = container.scrollHeight;
+}
+
+function toggleDebateCard(id) {
+    const el = document.getElementById(id);
+    if (el) {
+        const isHidden = el.style.display === 'none';
+        el.style.display = isHidden ? 'flex' : 'none';
+        const header = el.previousElementSibling;
+        const arrow = header.querySelector('span:last-child');
+        if (arrow) {
+            arrow.textContent = isHidden ? '▲' : '▼';
+        }
+    }
 }
 
 function addTypingIndicator() {

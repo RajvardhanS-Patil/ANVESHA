@@ -1069,3 +1069,108 @@ body::before {
     margin-top: 3px;
     accent-color: var(--accent-cyan);
 }
+
+/* === Debate Mode Styles === */
+.debate-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    margin-top: var(--space-sm);
+    width: 100%;
+}
+
+.debate-agent-card {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+}
+
+.debate-agent-header {
+    padding: var(--space-sm) var(--space-md);
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    user-select: none;
+}
+
+.debate-agent-header:hover {
+    background: var(--bg-glass-hover);
+}
+
+.debate-agent-content {
+    padding: var(--space-md);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    border-top: 1px solid var(--border-color);
+    line-height: 1.6;
+}
+
+.debate-agent-card.advocate {
+    border-left: 3px solid var(--accent-cyan);
+}
+.debate-agent-card.advocate .debate-agent-header {
+    color: var(--accent-cyan);
+    background: rgba(0, 212, 255, 0.03);
+}
+
+.debate-agent-card.skeptic {
+    border-left: 3px solid var(--accent-pink);
+}
+.debate-agent-card.skeptic .debate-agent-header {
+    color: var(--accent-pink);
+    background: rgba(255, 107, 157, 0.03);
+}
+
+.debate-verdict-banner {
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    margin-bottom: var(--space-sm);
+    border: 1px solid transparent;
+}
+
+.debate-verdict-banner.met {
+    background: rgba(0, 230, 118, 0.08);
+    border-color: rgba(0, 230, 118, 0.2);
+    border-left: 4px solid var(--accent-green);
+}
+
+.debate-verdict-banner.partial {
+    background: rgba(255, 145, 0, 0.08);
+    border-color: rgba(255, 145, 0, 0.2);
+    border-left: 4px solid var(--accent-orange);
+}
+
+.debate-verdict-banner.gap {
+    background: rgba(255, 71, 87, 0.08);
+    border-color: rgba(255, 71, 87, 0.2);
+    border-left: 4px solid var(--accent-red);
+}
+
+.verdict-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.verdict-badge {
+    font-size: 0.85rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+}
+
+.verdict-badge.met { color: var(--accent-green); }
+.verdict-badge.partial { color: var(--accent-orange); }
+.verdict-badge.gap { color: var(--accent-red); }
+
+.verdict-summary-text {
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    line-height: 1.6;
+}
