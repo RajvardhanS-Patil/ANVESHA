@@ -32,8 +32,9 @@ For EACH claim, respond with EXACTLY this JSON format:
             "claim_index": 0,
             "claim_text": "the claim text",
             "verdict": "SUPPORTED" or "NOT_SUPPORTED",
-            "reasoning": "brief explanation",
-            "supporting_evidence": "quote from evidence that supports this, or empty if not supported"
+            "reasoning": "brief explanation of why it is supported or not",
+            "supporting_evidence": "if SUPPORTED, quote from evidence that supports this. If NOT_SUPPORTED, quote from evidence that contradicts it or explain that it's absent",
+            "correction": "if NOT_SUPPORTED and contradicted, what the evidence ACTUALLY says. Otherwise empty."
         }}
     ]
 }}
@@ -155,6 +156,8 @@ async def verify_answer(
                 "text": c.get("text", ""),
                 "citations": c.get("citations", []),
                 "overlap_ratio": c.get("overlap_ratio", 0),
+                "reasoning": c.get("verification", {}).get("reasoning", ""),
+                "evidence": c.get("verification", {}).get("supporting_evidence", ""),
             }
             for c in verified_claims
         ],
@@ -162,6 +165,9 @@ async def verify_answer(
             {
                 "text": c.get("text", ""),
                 "reject_reason": c.get("reject_reason", "unknown"),
+                "reasoning": c.get("verification", {}).get("reasoning", "Rejected by pre-filter (no lexical overlap)"),
+                "evidence": c.get("verification", {}).get("supporting_evidence", "Not found in evidence"),
+                "correction": c.get("verification", {}).get("correction", "N/A"),
             }
             for c in all_rejected
         ],

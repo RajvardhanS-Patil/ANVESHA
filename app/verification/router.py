@@ -161,3 +161,64 @@ def _build_evidence_text(subgraph: dict) -> str:
             )
 
     return "\n".join(parts) if parts else ""
+
+
+class HallucinationConsultRequest(BaseModel):
+    claim: str = Field(..., description="The hallucinated claim")
+    reasoning: str = Field(..., description="Why it was flagged as hallucinated")
+    evidence: str = Field(..., description="Actual evidence found")
+    correction: str = Field(..., description="Suggested correction")
+    message: str = Field(..., description="The user's chat message")
+    history: list[dict] = Field(default=[], description="Chat history context")
+
+
+@router.post("/query/hallucination/consult")
+async def trigger_hallucination_consultation(request: HallucinationConsultRequest):
+    """
+    Spawns an interactive debate session with the ANVESHA Hallucination Analyst Agent.
+    """
+    from app.providers.llm_router import get_llm_router, Provider
+
+    llm_router = get_llm_router()
+
+    system_prompt = (
+        "You are the ANVESHA Hallucination Analyst Agent.\n"
+        "You are discussing a hallucinated claim that the system generated.\n\n"
+        f"CLAIM CONTEXT:\n"
+        f"- Hallucinated Claim: {request.claim}\n"
+        f"- Verifier Rationale: {request.reasoning}\n"
+        f"- Actual Evidence: {request.evidence}\n"
+        f"- Suggested Correction: {request.correction}\n\n"
+        "INSTRUCTIONS:\n"
+        "1. Answer the user's questions about why this claim was flagged.\n"
+        "2. If they argue that the claim is actually true, explain why the provided graph evidence does not support it.\n"
+        "3. If they suggest a workaround, analyze if it resolves the conflict.\n"
+        "4. Keep responses concise, professional, structured, and polite."
+    )
+
+    # Format history for LLM API format
+    formatted_prompt = ""
+    for turn in request.history[-6:]:  # Keep last 3 rounds for context
+        role = "User" if turn.get("role") == "user" else "Assistant"
+        formatted_prompt += f"{role}: {turn.get('content')}\n"
+    
+    formatted_prompt += f"User: {request.message}\nAssistant:"
+
+    try:
+        response = await llm_router.generate(
+            prompt=formatted_prompt,
+            system_prompt=system_prompt,
+            provider=Provider.GEMINI, # Gemini is great for conversational reasoning
+            temperature=0.3,
+            max_tokens=1024
+        )
+        return {"response": response}
+    except Exception as e:
+        logger.error(f"Hallucination consultation debate failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
+
+
+

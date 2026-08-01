@@ -378,3 +378,94 @@ async def get_full_graph(as_of: Optional[str] = None) -> dict:
     except Exception as e:
         logger.error(f"Failed to get full graph: {e}")
         return {"nodes": [], "edges": []}
+
+
+async def remediate_control_in_graph(requirement_id: str, code: str) -> dict:
+    """
+    Update a Control's status in Neo4j to 'MET' and connect it to a new
+    Lyzr Auto-Remediation Evidence node.
+    """
+    client = get_neo4j_client()
+    evidence_id = str(uuid.uuid4())
+    evidence_name = "Lyzr Auto-Remediation Execution Record"
+    evidence_desc = f"Compliance patch applied by Lyzr SecOps Agent. Code block:\n{code}"
+    now = datetime.now(timezone.utc).isoformat()
+
+    if not client.is_connected():
+        logger.warning("Neo4j not connected — updating fallback in-memory cache")
+        
+        # 1. Update status of existing Control/Requirement in fallback cache
+        control_node = None
+        for node in _fallback_nodes:
+            if node["id"] == requirement_id:
+                node["status"] = "MET"
+                node["description"] = (node.get("description") or "") + "\n(Remediated by Lyzr Agent)"
+                control_node = node
+                break
+
+        # If not found in cache, create a mock control node for testing
+        if not control_node:
+            control_node = {
+                "id": requirement_id,
+                "name": "Remediated Control",
+                "type": "Control",
+                "status": "MET",
+                "description": "Remediated by Lyzr Agent",
+                "created_at": now
+            }
+            _fallback_nodes.append(control_node)
+
+        # 2. Add Evidence node to fallback cache
+        _fallback_nodes.append({
+            "id": evidence_id,
+            "name": evidence_name,
+            "type": "Evidence",
+            "description": evidence_desc,
+            "source": "Lyzr Auto-Remediation Broker",
+            "created_at": now
+        })
+
+        # 3. Add Edge connecting them
+        _fallback_edges.append({
+            "source": requirement_id,
+            "target": evidence_id,
+            "type": "EVIDENCED_BY",
+            "description": "Lyzr automated remediation patch executed.",
+            "created_at": now
+        })
+
+        return {"status": "success", "mode": "fallback", "evidence_id": evidence_id}
+
+    # Neo4j connected: execute write query
+    try:
+        # Check if the node is in Neo4j and MERGE/SET its status to MET,
+        # then create and link the Evidence node.
+        query = """
+        MATCH (c:Entity)
+        WHERE c.id = $requirement_id OR c.name = $requirement_id
+        SET c.status = 'MET'
+        CREATE (e:Entity {
+            id: $evidence_id,
+            name: $evidence_name,
+            entity_type: 'Evidence',
+            description: $evidence_desc,
+            source_filename: 'Lyzr Auto-Remediation Broker',
+            extraction_confidence: 1.0,
+            created_at: $created_at
+        })
+        CREATE (c)-[r:EVIDENCED_BY]->(e)
+        RETURN c.id AS control_id, e.id AS evidence_id
+        """
+        result = await client.execute_write(query, {
+            "requirement_id": requirement_id,
+            "evidence_id": evidence_id,
+            "evidence_name": evidence_name,
+            "evidence_desc": evidence_desc,
+            "created_at": now
+        })
+        logger.info(f"Compliance control {requirement_id} remediated in Neo4j graph: {result}")
+        return {"status": "success", "mode": "neo4j", "evidence_id": evidence_id}
+    except Exception as e:
+        logger.error(f"Failed to write remediation to graph: {e}")
+        return {"status": "error", "message": str(e)}
+
