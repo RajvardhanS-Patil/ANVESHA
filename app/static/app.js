@@ -283,7 +283,8 @@ async function runUploadDebateAnalysis(docId, filename) {
 
             // Save report locally for compliance page
             lastReportId = cr.report_id;
-            activeComplianceReport = null; // Force refresh on compliance tab
+            activeComplianceReport = cr; // Save active report to render immediately
+            saveReportToLocal(cr); // Save to history so it persists
         }
 
     } catch (e) {
