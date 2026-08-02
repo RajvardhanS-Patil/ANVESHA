@@ -1734,7 +1734,9 @@ document.addEventListener('DOMContentLoaded', () => {
             connectionsMaterial.uniforms.uPulseColors.value[lastPulseIndex].copy(randomColor);
         }
 
-        container.addEventListener('pointermove', (e) => {
+        const eventTarget = document.getElementById('graph-canvas') || container;
+
+        eventTarget.addEventListener('pointermove', (e) => {
             const rect = container.getBoundingClientRect();
             if (rect.width <= 0 || rect.height <= 0) return;
             const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -1744,13 +1746,13 @@ document.addEventListener('DOMContentLoaded', () => {
             isHovered = true;
         });
 
-        container.addEventListener('pointerleave', () => {
+        eventTarget.addEventListener('pointerleave', () => {
             isHovered = false;
             targetRotX = 0;
             targetRotY = 0;
         });
 
-        container.addEventListener('pointerdown', (e) => {
+        eventTarget.addEventListener('pointerdown', (e) => {
             triggerPulse(e.clientX, e.clientY);
         });
 

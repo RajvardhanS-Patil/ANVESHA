@@ -932,7 +932,9 @@ function renderGraph(nodes, edges) {
         interaction: {
             hover: true,
             tooltipDelay: 200,
-            zoomView: true,
+            zoomView: false,
+            dragNodes: false,
+            dragView: false,
         },
         layout: { improvedLayout: true },
         nodes: { borderWidth: 2, shadow: { enabled: true, color: 'rgba(139,92,246,0.2)', size: 10 } },
@@ -942,6 +944,11 @@ function renderGraph(nodes, edges) {
     // Clear previous
     container.innerHTML = '';
     graphNetwork = new vis.Network(container, networkData, options);
+    
+    // Freeze graph physics after stabilization to keep dot map fixed
+    graphNetwork.on("stabilizationFinished", function () {
+        graphNetwork.setOptions({ physics: false });
+    });
 }
 
 // === Toast Notifications ===
