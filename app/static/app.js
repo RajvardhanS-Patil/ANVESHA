@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ANVESHA — Frontend Application Logic
  * Handles: chat, file upload, graph visualization, status polling
  */
@@ -3333,6 +3333,9 @@ After weighing both arguments and conducting independent evidence correlation ac
                     <button onclick="demoViewCompliancePage()" style="background:rgba(139,92,246,0.2);border:1px solid rgba(139,92,246,0.4);color:#d0bcff;border-radius:8px;padding:7px 14px;font-size:0.75rem;font-weight:bold;cursor:pointer">
                         🔍 View Full Compliance Matrix
                     </button>
+                    <button onclick="mockDownloadHighlightedDoc()" style="background:rgba(56,189,248,0.12);border:1px solid rgba(56,189,248,0.35);color:#38bdf8;border-radius:8px;padding:7px 14px;font-size:0.75rem;font-weight:bold;cursor:pointer">
+                        📝 Download Highlighted Document
+                    </button>
                     <button onclick="mockDownloadAnnotatedPDF()" style="background:rgba(78,222,163,0.1);border:1px solid rgba(78,222,163,0.3);color:#4edea3;border-radius:8px;padding:7px 14px;font-size:0.75rem;font-weight:bold;cursor:pointer">
                         📄 Download Annotated PDF Report
                     </button>
@@ -3699,4 +3702,354 @@ async function mockSendMessage() {
         citations: ["Apex_Security_Policy.pdf §1.0", "Apex_Security_Policy.pdf §3.0"]
     };
     await simulateDebateChat(debateData, 'NOOP', 52, debateData.citations, 'demo-q-1');
+}
+
+
+function mockDownloadHighlightedDoc() {
+    showToast('📝 Generating highlighted document with inline analysis...', 'info');
+    setTimeout(() => {
+        const html = generateHighlightedDocHTML();
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Apex_Security_Policy_HIGHLIGHTED.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('📝 Highlighted document downloaded!', 'success');
+    }, 1800);
+}
+
+function generateHighlightedDocHTML() {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Apex_Security_Policy.pdf — ANVESHA Highlighted Analysis</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif:ital,wght@0,400;0,700;1,400&family=Inter:wght@400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#e8e5e0;font-family:'Noto Serif',Georgia,'Times New Roman',serif;color:#1a1a1a;line-height:1.7;font-size:10.5pt}
+.page{width:210mm;min-height:297mm;margin:24px auto;background:white;box-shadow:0 4px 24px rgba(0,0,0,0.15);position:relative;display:flex}
+.page-content{flex:1;padding:28mm 22mm 24mm 22mm}
+.sidebar{width:62mm;background:#f8f7f5;border-left:1px solid #e0ddd8;padding:28mm 10mm 20mm 10mm;font-family:'Inter',sans-serif;font-size:7.5pt;color:#555;line-height:1.5}
+.sidebar-note{margin-bottom:14px;padding:8px 10px;border-radius:6px;border-left:3px solid;font-size:7.2pt;line-height:1.55}
+.sidebar-note.red{background:rgba(220,38,38,0.06);border-color:#dc2626;color:#991b1b}
+.sidebar-note.green{background:rgba(22,163,74,0.06);border-color:#16a34a;color:#166534}
+.sidebar-note.yellow{background:rgba(202,138,4,0.06);border-color:#ca8a04;color:#854d0e}
+.sidebar-note.blue{background:rgba(37,99,235,0.06);border-color:#2563eb;color:#1e40af}
+.sidebar-note .note-tag{font-weight:700;text-transform:uppercase;font-size:6.8pt;letter-spacing:0.06em;margin-bottom:3px;display:flex;align-items:center;gap:4px}
+.sidebar-note .note-body{font-size:7pt}
+.page-header{font-family:'Inter',sans-serif;font-size:7pt;color:#888;border-bottom:0.5pt solid #ccc;padding-bottom:6px;margin-bottom:16px;display:flex;justify-content:space-between}
+.page-footer{font-family:'Inter',sans-serif;font-size:7pt;color:#888;border-top:0.5pt solid #ccc;padding-top:6px;margin-top:auto;text-align:center;position:absolute;bottom:15mm;left:22mm;right:22mm}
+.doc-title{font-size:18pt;font-weight:bold;text-align:center;margin:12px 0 4px;letter-spacing:0.02em;color:#111}
+.doc-subtitle{font-size:11pt;text-align:center;color:#444;margin-bottom:6px}
+.doc-meta{font-size:8pt;text-align:center;color:#666;margin-bottom:16px;font-family:'Inter',sans-serif}
+.meta-table{width:auto;margin:10px auto 18px;border-collapse:collapse;font-size:8.5pt;font-family:'Inter',sans-serif}
+.meta-table td{padding:4px 14px;border:0.5pt solid #ccc}
+.meta-table td:first-child{font-weight:600;color:#333;background:#f5f4f2}
+.section-heading{font-size:12pt;font-weight:bold;margin:18px 0 8px;color:#111}
+p{margin:6px 0;text-align:justify}
+
+/* Highlight styles */
+.hl-red{background:rgba(239,68,68,0.18);border-bottom:2px solid #ef4444;padding:1px 2px;border-radius:2px;position:relative}
+.hl-green{background:rgba(34,197,94,0.15);border-bottom:2px solid #22c55e;padding:1px 2px;border-radius:2px}
+.hl-yellow{background:rgba(245,158,11,0.18);border-bottom:2px solid #f59e0b;padding:1px 2px;border-radius:2px}
+.hl-orange{background:rgba(249,115,22,0.15);border-bottom:2px solid #f97316;padding:1px 2px;border-radius:2px}
+.hl-blue{background:rgba(59,130,246,0.12);border-bottom:2px solid #3b82f6;padding:1px 2px;border-radius:2px}
+.hl-tag{font-family:'JetBrains Mono',monospace;font-size:6.5pt;font-weight:700;padding:1px 5px;border-radius:3px;margin-left:3px;vertical-align:super;white-space:nowrap;letter-spacing:0.03em}
+.tag-false{background:#fecaca;color:#991b1b}
+.tag-hallucination{background:#fecaca;color:#7f1d1d}
+.tag-gap{background:#fed7aa;color:#9a3412}
+.tag-verified{background:#bbf7d0;color:#166534}
+.tag-controversial{background:#fef08a;color:#854d0e}
+.tag-partial{background:#e0e7ff;color:#3730a3}
+
+/* Legend */
+.legend{font-family:'Inter',sans-serif;font-size:7.5pt;margin:12px 0 16px;padding:10px 14px;background:#f9f8f6;border:0.5pt solid #e0ddd8;border-radius:6px;display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.legend-title{font-weight:700;color:#333;margin-right:4px}
+.legend-item{display:flex;align-items:center;gap:4px}
+.legend-swatch{width:14px;height:8px;border-radius:2px;border:0.5pt solid rgba(0,0,0,0.15)}
+
+@media print{
+    body{background:white}
+    .page{box-shadow:none;margin:0;page-break-after:always}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ PAGE 1 ═══════════════ -->
+<div class="page">
+<div class="page-content">
+    <div class="page-header">
+        <span>Apex Payments Inc. | Information Security and Data Protection Policy | Internal</span>
+        <span>Page 1</span>
+    </div>
+
+    <div class="doc-title">APEX PAYMENTS INC.</div>
+    <div class="doc-subtitle">Information Security and Data Protection Policy</div>
+    <div class="doc-meta">Policy Owner: Chief Information Security Officer (CISO) | Classification: Internal | Version 1.0</div>
+
+    <table class="meta-table">
+        <tr><td>Effective Date</td><td>02 August 2026</td></tr>
+        <tr><td>Review Cycle</td><td>Annual</td></tr>
+        <tr><td>Applies To</td><td>All employees, contractors, systems and data</td></tr>
+        <tr><td>Approved By</td><td>Executive Management</td></tr>
+    </table>
+
+    <div class="legend">
+        <span class="legend-title">ANVESHA Analysis Legend:</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:#ef4444"></span> False / Hallucinated Claim</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:#f59e0b"></span> Controversial / Unverifiable</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:#22c55e"></span> Verified Correct</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:#3b82f6"></span> Noted / Partial</span>
+        <span class="legend-item"><span class="legend-swatch" style="background:#f97316"></span> Critical Gap</span>
+    </div>
+
+    <div class="section-heading">1.0 Purpose and Scope</div>
+    <p>This policy establishes the minimum information security and data protection requirements for Apex Payments Inc. It applies to all employees, contractors, administrators, applications, infrastructure, databases, and information assets that process, store, or transmit company or customer data. <span class="hl-green">Apex Payments is committed to protecting the confidentiality, integrity, and availability of information while supporting reliable financial services.</span><span class="hl-tag tag-verified">✅ VERIFIED</span></p>
+
+    <p><span class="hl-red">Apex Payments guarantees that 100% of customer data is encrypted both in transit and at rest using AES-256.</span><span class="hl-tag tag-false">🚩 FALSE — CONTRADICTED BY §3.0</span> All teams are expected to design and operate systems in accordance with this assurance and to report deviations through the security exception process.</p>
+
+    <div class="section-heading">2.0 Access Control and Identity Security</div>
+    <p>Access to Apex Payments systems shall follow the <span class="hl-green">principles of least privilege and need-to-know</span><span class="hl-tag tag-verified">✅</span>. <span class="hl-green">All employee and administrator accounts require Multi-Factor Authentication (MFA) using company-approved hardware tokens.</span><span class="hl-tag tag-verified">✅ MET — SOC 2 CC6.1</span> Password-only access is prohibited for corporate, production, cloud, database, and administrative systems.</p>
+
+    <p>Authorization is governed through a strict <span class="hl-green">Role-Based Access Control (RBAC) matrix</span><span class="hl-tag tag-verified">✅</span> that maps approved job functions to system privileges. <span class="hl-green">Access rights, privileged roles, inactive accounts, and role assignments are formally reviewed every 30 days.</span><span class="hl-tag tag-verified">✅ EXCEEDS REQUIREMENT</span> Unnecessary or inappropriate access must be revoked promptly, and changes to privileged access must be recorded for audit purposes.</p>
+
+    <div class="section-heading">3.0 Data Storage and Protection</div>
+    <p>Sensitive customer and payment information should be protected throughout its lifecycle, including collection, processing, storage, transmission, archival, and disposal. New systems must use approved cryptographic controls and restrict access to sensitive datasets to authorized personnel and services.</p>
+
+    <p><span class="hl-orange">Notwithstanding the encryption commitment stated in Section 1.0, the legacy transactions_db PostgreSQL database currently stores user credit card numbers and passwords in plain text without encryption or password hashing.</span><span class="hl-tag tag-gap">🚨 CRITICAL GAP — PCI-DSS REQ.3 VIOLATION</span> <span class="hl-yellow">This configuration remains in place because the legacy reporting tools cannot read encrypted data.</span><span class="hl-tag tag-controversial">⚠️ WEAK JUSTIFICATION</span> The database is therefore an acknowledged security exception pending modernization of the reporting environment.</p>
+
+    <div class="page-footer">Apex Payments Inc. — Confidential — Page 1 of 2 &nbsp;|&nbsp; <span style="color:#7c3aed;font-weight:600">ANVESHA AI Analysis Overlay Applied</span></div>
+</div>
+
+<div class="sidebar">
+    <div style="font-weight:700;font-size:8pt;color:#7c3aed;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #e0ddd8;letter-spacing:0.05em">ANVESHA ANALYSIS</div>
+
+    <div class="sidebar-note red">
+        <div class="note-tag">🚩 HALLUCINATION DETECTED</div>
+        <div class="note-body"><strong>§1.0 "100% encrypted"</strong> — This claim is directly contradicted by §3.0 which admits plaintext PAN storage. This is a documented lie within the same policy document.<br><br><strong>Impact:</strong> GDPR Art.32, PCI-DSS Req.3.4, ISO 27001 A.8.24</div>
+    </div>
+
+    <div class="sidebar-note green">
+        <div class="note-tag">✅ COMPLIANT</div>
+        <div class="note-body"><strong>§2.0 MFA + RBAC</strong> — Hardware MFA (Yubikey) and 30-day review cycle satisfy SOC 2 CC6.1 and exceed minimum requirements. Strong access control posture confirmed.</div>
+    </div>
+
+    <div class="sidebar-note red">
+        <div class="note-tag">🚨 CRITICAL PCI-DSS VIOLATION</div>
+        <div class="note-body"><strong>§3.0 Plaintext PANs</strong> — Credit card numbers in plaintext violates PCI-DSS Req. 3.4 which mandates PANs be rendered unreadable. This is a Level 1 finding.<br><br><strong>Remediation:</strong> Implement pgcrypto or migrate to encrypted-at-rest storage within 48 hours.</div>
+    </div>
+
+    <div class="sidebar-note yellow">
+        <div class="note-tag">⚠️ CONTROVERSIAL</div>
+        <div class="note-body"><strong>§3.0 "legacy reporting tools cannot read encrypted data"</strong> — This is a weak justification. Modern BI tools (Tableau, Looker, Metabase) all support encrypted data sources. The "technical limitation" excuse is outdated.</div>
+    </div>
+
+    <div style="margin-top:16px;padding:10px;background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.15);border-radius:6px">
+        <div style="font-weight:700;font-size:7pt;color:#7c3aed;margin-bottom:4px">PAGE 1 ANALYSIS SUMMARY</div>
+        <div style="font-size:7pt;color:#555;line-height:1.5">
+            <div style="display:flex;justify-content:space-between;padding:2px 0"><span>✅ Verified Claims</span><span style="font-weight:700;color:#16a34a">5</span></div>
+            <div style="display:flex;justify-content:space-between;padding:2px 0"><span>🚩 False Claims</span><span style="font-weight:700;color:#dc2626">1</span></div>
+            <div style="display:flex;justify-content:space-between;padding:2px 0"><span>🚨 Critical Gaps</span><span style="font-weight:700;color:#dc2626">1</span></div>
+            <div style="display:flex;justify-content:space-between;padding:2px 0"><span>⚠️ Controversial</span><span style="font-weight:700;color:#ca8a04">1</span></div>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- ═══════════════ PAGE 2 ═══════════════ -->
+<div class="page">
+<div class="page-content">
+    <div class="page-header">
+        <span>Apex Payments Inc. | Information Security and Data Protection Policy | Internal</span>
+        <span>Page 2</span>
+    </div>
+
+    <div class="section-heading">4.0 Backup, Recovery and Business Continuity</div>
+    <p><span class="hl-blue">System backups are performed automatically every Sunday at 2:00 AM</span><span class="hl-tag tag-partial">📋 NOTED</span> to support recovery from accidental deletion, system failure, or operational disruption. Backup completion should be monitored and failures escalated to the infrastructure team.</p>
+
+    <p><span class="hl-orange">To reduce infrastructure costs, the current backups are stored on the same local server rack as the primary database. This creates a shared physical failure domain between production data and its backup copies.</span><span class="hl-tag tag-gap">🚨 CRITICAL — NO OFF-SITE BACKUP</span> <span class="hl-yellow">In addition, restoration testing has not been performed during the last 18 months.</span><span class="hl-tag tag-controversial">⚠️ DR TESTING GAP</span> Management acknowledges these limitations and intends to evaluate geographically separate backup storage and a recurring recovery-test schedule.</p>
+
+    <div class="section-heading">5.0 Incident Response</div>
+    <p><span class="hl-green">Employees and contractors must immediately report suspected security incidents, unauthorized access, data exposure, malware, credential compromise, or abnormal system behavior to the Security Team.</span><span class="hl-tag tag-verified">✅</span> The CISO or designated incident commander shall coordinate triage, containment, evidence preservation, eradication, recovery, and post-incident review. <span class="hl-yellow">Material incidents shall be escalated to executive management and relevant legal or compliance stakeholders.</span><span class="hl-tag tag-controversial">⚠️ NO 72-HR SLA DEFINED</span></p>
+
+    <p>Security logs and available audit evidence should be preserved during investigations. Lessons learned from significant incidents must be documented and used to improve technical controls, operational procedures, and employee awareness.</p>
+
+    <div class="section-heading">6.0 Security Monitoring and Audit</div>
+    <p><span class="hl-green">Production systems should generate appropriate authentication, authorization, administrative, and security event logs.</span><span class="hl-tag tag-verified">✅ PCI-DSS REQ.10</span> Security personnel are responsible for reviewing relevant alerts and investigating suspicious activity. Compliance reviews may include access records, configuration evidence, backup records, incident documentation, and data-protection controls.</p>
+
+    <div class="section-heading">7.0 Policy Exceptions and Enforcement</div>
+    <p><span class="hl-blue">Exceptions to this policy must be documented with a business justification, risk description, responsible owner, and planned remediation date.</span><span class="hl-tag tag-partial">📋 PROCESS EXISTS</span> <span class="hl-yellow">Approved exceptions do not remove the underlying risk.</span><span class="hl-tag tag-controversial">⚠️ EXCEPTION FOR §3.0 STILL OPEN</span> Violations may result in access suspension, disciplinary action, contract termination, or other corrective measures as appropriate.</p>
+
+    <div class="section-heading">8.0 Review and Approval</div>
+    <p>The CISO shall review this policy at least <span class="hl-blue">annually</span><span class="hl-tag tag-partial">📋 MINIMUM CADENCE</span> and following material changes to Apex Payments' technology, regulatory obligations, threat environment, or business operations. Material revisions require executive management approval.</p>
+
+    <p style="margin-top:18px;padding-top:8px;border-top:0.5pt solid #ccc;font-size:8.5pt;font-style:italic;color:#888">Document Note: This fictional policy is intended for controlled compliance and audit-system testing. It intentionally contains differing control states and an internal contradiction for evaluation purposes.</p>
+
+    <div class="page-footer">Apex Payments Inc. — Confidential — Page 2 of 2 &nbsp;|&nbsp; <span style="color:#7c3aed;font-weight:600">ANVESHA AI Analysis Overlay Applied</span></div>
+</div>
+
+<div class="sidebar">
+    <div style="font-weight:700;font-size:8pt;color:#7c3aed;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #e0ddd8;letter-spacing:0.05em">ANVESHA ANALYSIS</div>
+
+    <div class="sidebar-note red">
+        <div class="note-tag">🚨 BUSINESS CONTINUITY GAP</div>
+        <div class="note-body"><strong>§4.0 Co-located backups</strong> — Backups on the same server rack as production is a single-point-of-failure. A fire, flood, or rack failure would destroy both primary data and backups simultaneously.<br><br><strong>Remediation:</strong> Implement 3-2-1 backup strategy (3 copies, 2 media, 1 off-site).</div>
+    </div>
+
+    <div class="sidebar-note yellow">
+        <div class="note-tag">⚠️ DR TESTING LAG</div>
+        <div class="note-body"><strong>§4.0 "18 months since restoration testing"</strong> — ISO 22301 and SOC 2 A1.2 require periodic DR testing. 18 months is excessive. Untested backups may be corrupted or incomplete.</div>
+    </div>
+
+    <div class="sidebar-note yellow">
+        <div class="note-tag">⚠️ GDPR ART.33 RISK</div>
+        <div class="note-body"><strong>§5.0 No explicit 72-hour SLA</strong> — GDPR requires breach notification within 72 calendar hours. This section says "immediately" to internal team but defines no external notification timeline.</div>
+    </div>
+
+    <div class="sidebar-note green">
+        <div class="note-tag">✅ LOGGING COMPLIANT</div>
+        <div class="note-body"><strong>§6.0 Security logs</strong> — Logging requirement satisfies PCI-DSS Req.10 and SOC 2 CC7.2. Centralized log generation and review processes are defined.</div>
+    </div>
+
+    <div class="sidebar-note blue">
+        <div class="note-tag">📋 EXCEPTION PROCESS</div>
+        <div class="note-body"><strong>§7.0</strong> — Exception process exists but the §3.0 plaintext storage exception remains open with no defined remediation deadline. Open-ended exceptions undermine the control framework.</div>
+    </div>
+
+    <div style="margin-top:16px;padding:10px;background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.15);border-radius:6px">
+        <div style="font-weight:700;font-size:7pt;color:#7c3aed;margin-bottom:4px">PAGE 2 ANALYSIS SUMMARY</div>
+        <div style="font-size:7pt;color:#555;line-height:1.5">
+            <div style="display:flex;justify-content:space-between;padding:2px 0"><span>✅ Verified Claims</span><span style="font-weight:700;color:#16a34a">2</span></div>
+            <div style="display:flex;justify-content:space-between;padding:2px 0"><span>🚨 Critical Gaps</span><span style="font-weight:700;color:#dc2626">1</span></div>
+            <div style="display:flex;justify-content:space-between;padding:2px 0"><span>⚠️ Controversial</span><span style="font-weight:700;color:#ca8a04">3</span></div>
+            <div style="display:flex;justify-content:space-between;padding:2px 0"><span>📋 Noted</span><span style="font-weight:700;color:#2563eb">3</span></div>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- ═══════════════ ANALYSIS SUMMARY PAGE ═══════════════ -->
+<div class="page" style="min-height:auto">
+<div class="page-content" style="padding-bottom:30mm">
+    <div class="page-header">
+        <span>ANVESHA Intelligence Platform — Compliance Analysis Summary</span>
+        <span>Analysis Page</span>
+    </div>
+
+    <div style="text-align:center;margin:10px 0 20px">
+        <div style="font-family:'Inter',sans-serif;font-size:8pt;color:#7c3aed;font-weight:700;letter-spacing:0.08em;margin-bottom:6px">ANVESHA MULTI-AGENT COMPLIANCE ANALYSIS</div>
+        <div style="font-size:14pt;font-weight:700;color:#111">Document Analysis Summary</div>
+        <div style="font-size:9pt;color:#666;font-family:'Inter',sans-serif;margin-top:4px">Apex_Security_Policy.pdf — Generated ${new Date().toLocaleString()}</div>
+    </div>
+
+    <!-- Overall Score -->
+    <div style="display:flex;gap:16px;margin:16px 0;font-family:'Inter',sans-serif">
+        <div style="flex:1;padding:14px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;text-align:center">
+            <div style="font-size:28pt;font-weight:900;color:#dc2626">52%</div>
+            <div style="font-size:7.5pt;color:#991b1b;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Overall Compliance</div>
+        </div>
+        <div style="flex:1;padding:14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;text-align:center">
+            <div style="font-size:28pt;font-weight:900;color:#16a34a">4</div>
+            <div style="font-size:7.5pt;color:#166534;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Controls Met</div>
+        </div>
+        <div style="flex:1;padding:14px;background:#fefce8;border:1px solid #fef08a;border-radius:8px;text-align:center">
+            <div style="font-size:28pt;font-weight:900;color:#ca8a04">3</div>
+            <div style="font-size:7.5pt;color:#854d0e;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Partial</div>
+        </div>
+        <div style="flex:1;padding:14px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;text-align:center">
+            <div style="font-size:28pt;font-weight:900;color:#dc2626">5</div>
+            <div style="font-size:7.5pt;color:#991b1b;font-weight:600;text-transform:uppercase;letter-spacing:0.06em">Critical Gaps</div>
+        </div>
+    </div>
+
+    <!-- Pie Chart SVG -->
+    <div style="display:flex;gap:24px;align-items:center;margin:20px 0;font-family:'Inter',sans-serif">
+        <svg width="140" height="140" viewBox="0 0 140 140">
+            <circle cx="70" cy="70" r="50" fill="none" stroke="#ef4444" stroke-width="22" stroke-dasharray="${2*Math.PI*50*0.42} ${2*Math.PI*50*0.58}" stroke-dashoffset="${2*Math.PI*50*0.25}" transform="rotate(-90 70 70)"/>
+            <circle cx="70" cy="70" r="50" fill="none" stroke="#22c55e" stroke-width="22" stroke-dasharray="${2*Math.PI*50*0.33} ${2*Math.PI*50*0.67}" stroke-dashoffset="${2*Math.PI*50*(0.25-0.42)}" transform="rotate(-90 70 70)"/>
+            <circle cx="70" cy="70" r="50" fill="none" stroke="#eab308" stroke-width="22" stroke-dasharray="${2*Math.PI*50*0.25} ${2*Math.PI*50*0.75}" stroke-dashoffset="${2*Math.PI*50*(0.25-0.42-0.33)}" transform="rotate(-90 70 70)"/>
+            <text x="70" y="66" text-anchor="middle" fill="#111" font-size="18" font-weight="900" font-family="Inter,sans-serif">52%</text>
+            <text x="70" y="80" text-anchor="middle" fill="#666" font-size="7" font-family="Inter,sans-serif">Compliant</text>
+        </svg>
+        <div>
+            <div style="display:flex;align-items:center;gap:8px;margin:5px 0"><div style="width:12px;height:12px;border-radius:3px;background:#22c55e"></div><span style="font-size:8.5pt"><strong>33% MET</strong> — 4 controls fully satisfied</span></div>
+            <div style="display:flex;align-items:center;gap:8px;margin:5px 0"><div style="width:12px;height:12px;border-radius:3px;background:#eab308"></div><span style="font-size:8.5pt"><strong>25% PARTIAL</strong> — 3 controls partially met</span></div>
+            <div style="display:flex;align-items:center;gap:8px;margin:5px 0"><div style="width:12px;height:12px;border-radius:3px;background:#ef4444"></div><span style="font-size:8.5pt"><strong>42% GAP</strong> — 5 critical failures</span></div>
+        </div>
+    </div>
+
+    <!-- Hallucination Summary -->
+    <div style="margin:18px 0;font-family:'Inter',sans-serif">
+        <div style="font-size:10pt;font-weight:700;color:#111;margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid #e5e7eb">🚩 Hallucination & Falseness Summary</div>
+        <table style="width:100%;border-collapse:collapse;font-size:8pt">
+            <thead>
+                <tr style="background:#f9fafb">
+                    <th style="text-align:left;padding:6px 8px;border:0.5pt solid #e5e7eb;font-size:7pt;text-transform:uppercase;color:#6b7280;font-weight:600">#</th>
+                    <th style="text-align:left;padding:6px 8px;border:0.5pt solid #e5e7eb;font-size:7pt;text-transform:uppercase;color:#6b7280;font-weight:600">Claim (as written in document)</th>
+                    <th style="text-align:left;padding:6px 8px;border:0.5pt solid #e5e7eb;font-size:7pt;text-transform:uppercase;color:#6b7280;font-weight:600">Verdict</th>
+                    <th style="text-align:left;padding:6px 8px;border:0.5pt solid #e5e7eb;font-size:7pt;text-transform:uppercase;color:#6b7280;font-weight:600">Section</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td style="padding:5px 8px;border:0.5pt solid #e5e7eb">1</td><td style="padding:5px 8px;border:0.5pt solid #e5e7eb">"100% of customer data is encrypted in transit and at rest"</td><td style="padding:5px 8px;border:0.5pt solid #e5e7eb"><span style="background:#fecaca;color:#991b1b;padding:1px 6px;border-radius:8px;font-weight:700;font-size:7pt">FALSE</span></td><td style="padding:5px 8px;border:0.5pt solid #e5e7eb;font-family:'JetBrains Mono',monospace">§1.0</td></tr>
+                <tr style="background:#fefefe"><td style="padding:5px 8px;border:0.5pt solid #e5e7eb">2</td><td style="padding:5px 8px;border:0.5pt solid #e5e7eb">"transactions_db stores credit card numbers in plain text"</td><td style="padding:5px 8px;border:0.5pt solid #e5e7eb"><span style="background:#fef08a;color:#854d0e;padding:1px 6px;border-radius:8px;font-weight:700;font-size:7pt">CONFIRMED GAP</span></td><td style="padding:5px 8px;border:0.5pt solid #e5e7eb;font-family:'JetBrains Mono',monospace">§3.0</td></tr>
+                <tr><td style="padding:5px 8px;border:0.5pt solid #e5e7eb">3</td><td style="padding:5px 8px;border:0.5pt solid #e5e7eb">"backups stored on the same local server rack"</td><td style="padding:5px 8px;border:0.5pt solid #e5e7eb"><span style="background:#fed7aa;color:#9a3412;padding:1px 6px;border-radius:8px;font-weight:700;font-size:7pt">RISK</span></td><td style="padding:5px 8px;border:0.5pt solid #e5e7eb;font-family:'JetBrains Mono',monospace">§4.0</td></tr>
+                <tr style="background:#fefefe"><td style="padding:5px 8px;border:0.5pt solid #e5e7eb">4</td><td style="padding:5px 8px;border:0.5pt solid #e5e7eb">"restoration testing has not been performed during the last 18 months"</td><td style="padding:5px 8px;border:0.5pt solid #e5e7eb"><span style="background:#fef08a;color:#854d0e;padding:1px 6px;border-radius:8px;font-weight:700;font-size:7pt">CONFIRMED GAP</span></td><td style="padding:5px 8px;border:0.5pt solid #e5e7eb;font-family:'JetBrains Mono',monospace">§4.0</td></tr>
+                <tr><td style="padding:5px 8px;border:0.5pt solid #e5e7eb">5</td><td style="padding:5px 8px;border:0.5pt solid #e5e7eb">No explicit 72-hour breach notification SLA defined</td><td style="padding:5px 8px;border:0.5pt solid #e5e7eb"><span style="background:#fef08a;color:#854d0e;padding:1px 6px;border-radius:8px;font-weight:700;font-size:7pt">MISSING</span></td><td style="padding:5px 8px;border:0.5pt solid #e5e7eb;font-family:'JetBrains Mono',monospace">§5.0</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Key Insight box -->
+    <div style="margin:16px 0;padding:14px;background:#fef2f2;border:1px solid #fecaca;border-radius:8px;font-family:'Inter',sans-serif">
+        <div style="font-size:9pt;font-weight:700;color:#991b1b;margin-bottom:5px">🚨 Critical Finding — Internal Contradiction</div>
+        <div style="font-size:8.5pt;color:#7f1d1d;line-height:1.65">Section 1.0 guarantees <em>"100% of customer data is encrypted"</em> using AES-256. Section 3.0 explicitly admits <em>"the legacy transactions_db currently stores user credit card numbers and passwords in plain text."</em> This is a direct self-contradiction within the same policy document. The §1.0 claim is therefore a <strong>false statement</strong> and should be corrected or caveated immediately.</div>
+    </div>
+
+    <div style="margin-top:20px;padding-top:10px;border-top:1px solid #e5e7eb;font-family:'Inter',sans-serif;font-size:7.5pt;color:#9ca3af;display:flex;justify-content:space-between">
+        <span>ANVESHA Intelligence Platform — Automated Compliance Analysis</span>
+        <span>Generated: ${new Date().toLocaleString()}</span>
+    </div>
+</div>
+
+<div class="sidebar" style="min-height:auto">
+    <div style="font-weight:700;font-size:8pt;color:#7c3aed;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid #e0ddd8;letter-spacing:0.05em">OVERALL FINDINGS</div>
+
+    <div class="sidebar-note red">
+        <div class="note-tag">🚩 VERDICT: HIGH RISK</div>
+        <div class="note-body">This document makes <strong>1 false claim</strong> (100% encryption guarantee) while simultaneously admitting to a violation of that guarantee. This combination is the most severe type of compliance finding — <strong>documented self-contradiction</strong>.</div>
+    </div>
+
+    <div class="sidebar-note green">
+        <div class="note-tag">✅ STRENGTHS</div>
+        <div class="note-body"><strong>Access Control:</strong> MFA + RBAC with 30-day reviews is strong.<br><strong>Logging:</strong> Security event logging is well-defined.<br><strong>Exception Process:</strong> Formal exception management exists.</div>
+    </div>
+
+    <div class="sidebar-note yellow">
+        <div class="note-tag">⚠️ TOP 3 ACTIONS</div>
+        <div class="note-body">1. Encrypt transactions_db immediately<br>2. Move backups off-site (3-2-1 strategy)<br>3. Define explicit 72-hr breach notification SLA</div>
+    </div>
+
+    <div style="margin-top:14px;padding:10px;background:rgba(124,58,237,0.06);border:1px solid rgba(124,58,237,0.15);border-radius:6px">
+        <div style="font-weight:700;font-size:7pt;color:#7c3aed;margin-bottom:4px">ANALYSIS TOTALS</div>
+        <div style="font-size:7pt;color:#555;line-height:1.6">
+            <div style="display:flex;justify-content:space-between;padding:2px 0"><span>✅ Verified Correct</span><span style="font-weight:700;color:#16a34a">7</span></div>
+            <div style="display:flex;justify-content:space-between;padding:2px 0"><span>🚩 False / Hallucinated</span><span style="font-weight:700;color:#dc2626">1</span></div>
+            <div style="display:flex;justify-content:space-between;padding:2px 0"><span>🚨 Critical Gaps</span><span style="font-weight:700;color:#dc2626">2</span></div>
+            <div style="display:flex;justify-content:space-between;padding:2px 0"><span>⚠️ Controversial</span><span style="font-weight:700;color:#ca8a04">4</span></div>
+            <div style="display:flex;justify-content:space-between;padding:2px 0"><span>📋 Noted / Partial</span><span style="font-weight:700;color:#2563eb">3</span></div>
+            <div style="display:flex;justify-content:space-between;padding:3px 0;margin-top:3px;border-top:1px solid #e0ddd8"><span style="font-weight:700">Total Annotations</span><span style="font-weight:900;color:#7c3aed">17</span></div>
+        </div>
+    </div>
+</div>
+</div>
+
+</body>
+</html>`;
 }
