@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ANVESHA — Frontend Application Logic
  * Handles: chat, file upload, graph visualization, status polling
  */
@@ -4316,28 +4316,36 @@ async function processAgentQuestion(question) {
     addAgentBubble('user', question);
     updateAgentStatus('processing');
 
-    // Small delay for natural feel
-    await new Promise(r => setTimeout(r, 800));
-
-    const answer = findAgentAnswer(question);
-    addAgentBubble('agent', answer);
-    agentSpeak(answer);
-}
-
-function findAgentAnswer(question) {
-    const q = question.toLowerCase();
-
-    // Try matching from knowledge base
-    for (const entry of AGENT_KNOWLEDGE) {
-        for (const trigger of entry.triggers) {
-            if (q.includes(trigger.toLowerCase())) {
-                return entry.response;
-            }
+    try {
+        // Gather report context to send to Groq
+        let contextStr = "No active report context.";
+        if (window.activeComplianceReport) {
+            const report = window.activeComplianceReport;
+            contextStr = `Score: ${report.compliance_score}%. ` +
+                         `Controls: ${JSON.stringify(report.controls)}`;
         }
+        
+        const res = await fetch('/api/audit/voice_chat', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                question: question,
+                report_context: contextStr.substring(0, 6000)
+            })
+        });
+        
+        if (!res.ok) throw new Error('Failed to fetch from LLM');
+        const data = await res.json();
+        
+        addAgentBubble('agent', data.answer);
+        agentSpeak(data.answer);
+    } catch (err) {
+        console.error("Voice Agent LLM error:", err);
+        const fallbackMsg = "I'm having trouble connecting to the intelligence module. Please try again later.";
+        addAgentBubble('agent', fallbackMsg);
+        agentSpeak(fallbackMsg);
+        updateAgentStatus('ready');
     }
-
-    // Fallback: generic response
-    return `That's a great question. Based on my analysis of the Apex Security Policy, the document scores 52% compliance with 5 critical gaps and 8 hallucinated claims. The most critical issue is the plaintext storage of credit card numbers in the transactions database, which violates PCI-DSS Requirement 3. Would you like me to explain any specific finding in more detail? You can ask about encryption, access controls, hallucinations, incident response, or vendor management.`;
 }
 
 function agentEndCall() {

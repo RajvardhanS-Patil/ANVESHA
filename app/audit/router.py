@@ -333,3 +333,29 @@ async def trigger_consultation(request: ConsultRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+
+class VoiceChatRequest(BaseModel):
+    question: str
+    report_context: str
+
+@router.post(""/audit/voice_chat"")
+async def handle_voice_chat(request: VoiceChatRequest):
+    from app.providers.llm_router import get_llm_router, Provider
+    llm = get_llm_router()
+    
+    prompt = f"""You are the ANVESHA compliance intelligence agent.
+You are having a voice conversation with a user about a compliance report.
+Keep your answers CONCISE, clear, and easy to speak out loud (avoid complex markdown, tables, or code).
+Answer the user's question based ONLY on the provided report context.
+
+Report Context:
+{request.report_context}
+
+User Question: {request.question}
+"""
+    try:
+        response = await llm.generate(prompt, provider=Provider.GROQ, temperature=0.3)
+        return {"answer": response}
+    except Exception as e:
+        logger.error(f"Voice chat failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
