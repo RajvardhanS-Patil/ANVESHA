@@ -10,7 +10,7 @@ import os
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, Form
+from fastapi import APIRouter, UploadFile, File, HTTPException, Form, BackgroundTasks
 from fastapi.responses import JSONResponse
 
 from app.ingestion.base import IngestionResult
@@ -69,8 +69,23 @@ def get_raw_file_store() -> dict:
     return _raw_file_store
 
 
+async def _process_extraction_and_graph(merged: IngestionResult, all_chunks: list):
+    try:
+        if all_chunks:
+            logger.info(f"Starting background extraction for {merged.filename}")
+            extraction_result = await extract_entities_from_chunks(all_chunks)
+            await write_document_to_graph(merged)
+            await write_entities_to_graph(extraction_result["entities"])
+            await write_relationships_to_graph(extraction_result["relationships"])
+            await write_mention_edges(extraction_result["entities"])
+            logger.info(f"Background extraction complete for {merged.filename}")
+    except Exception as e:
+        logger.error(f"Background extraction/graph write failed: {e}")
+
+
 @router.post("/ingest")
 async def ingest_file(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     extract_tables: Optional[bool] = Form(default=True),
     language: Optional[str] = Form(default="en"),
@@ -175,32 +190,14 @@ async def ingest_file(
     for chunk in all_chunks:
         _chunk_store[chunk.chunk_id] = chunk.to_dict()
 
-    # --- Phase 2: Entity extraction + graph write ---
-    extraction_stats = {}
-    graph_stats = {}
-    try:
-        if all_chunks:
-            # Extract entities and relationships
-            extraction_result = await extract_entities_from_chunks(all_chunks)
-            extraction_stats = extraction_result.get("stats", {})
-
-            # Write to Neo4j
-            await write_document_to_graph(merged)
-            entity_write = await write_entities_to_graph(extraction_result["entities"])
-            rel_write = await write_relationships_to_graph(extraction_result["relationships"])
-            await write_mention_edges(extraction_result["entities"])
-
-            graph_stats = {
-                "entities_written": entity_write.get("written", 0),
-                "relationships_written": rel_write.get("written", 0),
-            }
-    except Exception as e:
-        logger.error(f"Extraction/graph write failed (ingestion still succeeded): {e}")
-        extraction_stats["error"] = str(e)
+    # --- Phase 2: Entity extraction + graph write (Moved to background to prevent 502) ---
+    background_tasks.add_task(_process_extraction_and_graph, merged, all_chunks)
+    extraction_stats = {"status": "processing in background"}
+    graph_stats = {"status": "processing in background"}
 
     logger.info(
         f"Ingestion complete: {filename} — {len(all_chunks)} chunks, "
-        f"{merged.processing_time_seconds:.2f}s"
+        f"{merged.processing_time_seconds:.2f}s (extraction in background)"
     )
 
     return {
