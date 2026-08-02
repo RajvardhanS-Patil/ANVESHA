@@ -1,5 +1,5 @@
 """
-ANVESHA Annotated Document Export — Highlight compliance findings on source PDFs.
+ANVESHA Annotated Document Export â€” Highlight compliance findings on source PDFs.
 
 Takes a completed audit report and overlays colored highlight annotations
 directly on the original uploaded PDF pages:
@@ -33,9 +33,9 @@ STATUS_COLORS = {
 }
 
 STATUS_LABELS = {
-    "GAP":     "❌ GAP — Non-Compliant",
-    "PARTIAL": "⚠️ PARTIAL — Partially Addressed",
-    "MET":     "✅ MET — Fully Compliant",
+    "GAP":     "âŒ GAP â€” Non-Compliant",
+    "PARTIAL": "âš ï¸ PARTIAL â€” Partially Addressed",
+    "MET":     "âœ… MET â€” Fully Compliant",
 }
 
 # HTML colors for non-PDF annotated reports
@@ -126,7 +126,7 @@ def _build_search_terms(finding: dict) -> list[str]:
     terms = []
     snippet = finding.get("text_snippet", "")
 
-    # Clean the snippet — remove source attribution prefixes
+    # Clean the snippet â€” remove source attribution prefixes
     for prefix in ["Source:", "Document:", "Semantic Match", "Connected "]:
         if snippet.startswith(prefix):
             # Take content after the prefix marker
@@ -157,13 +157,14 @@ def _build_search_terms(finding: dict) -> list[str]:
     return terms
 
 
-def annotate_pdf(pdf_bytes: bytes, findings: list[dict]) -> bytes:
+def annotate_pdf(pdf_bytes: bytes, findings: list[dict], report: dict = None) -> bytes:
     """
     Annotate a PDF with colored highlights on text matching audit findings.
 
     Args:
         pdf_bytes: Raw PDF file bytes
         findings: List of finding dicts with text_snippet, status, control_name, reasoning
+        report: The full audit report dictionary (used to append the graph analysis summary)
 
     Returns:
         Annotated PDF bytes with highlight annotations
@@ -203,7 +204,7 @@ def annotate_pdf(pdf_bytes: bytes, findings: list[dict]) -> bytes:
                             f"Reasoning: {reasoning[:200]}"
                         )
                         annot.set_info(
-                            title=f"ANVESHA Audit — {status}",
+                            title=f"ANVESHA Audit â€” {status}",
                             content=popup_text,
                         )
                         annot.update()
@@ -213,6 +214,10 @@ def annotate_pdf(pdf_bytes: bytes, findings: list[dict]) -> bytes:
 
     # --- Append a legend page at the end ---
     _append_legend_page(doc, annotations_added)
+
+    # --- Append the Graph Analysis Summary page ---
+    if report:
+        _append_analysis_summary_page(doc, report)
 
     # Save to bytes
     output = io.BytesIO()
@@ -233,7 +238,7 @@ def _append_legend_page(doc: fitz.Document, total_annotations: int):
     title_rect = fitz.Rect(50, 40, 545, 80)
     page.insert_textbox(
         title_rect,
-        "ANVESHA — Compliance Audit Annotation Legend",
+        "ANVESHA â€” Compliance Audit Annotation Legend",
         fontsize=16,
         fontname="helv",
         color=(0.3, 0.2, 0.5),
@@ -257,15 +262,15 @@ def _append_legend_page(doc: fitz.Document, total_annotations: int):
     # Legend entries
     y_offset = 150
     legend_items = [
-        ("GAP — Non-Compliant", STATUS_COLORS["GAP"],
+        ("GAP â€” Non-Compliant", STATUS_COLORS["GAP"],
          "Red highlights indicate text passages related to compliance requirements "
          "where NO evidence or controls were found. These represent critical gaps "
          "requiring immediate remediation."),
-        ("PARTIAL — Partially Addressed", STATUS_COLORS["PARTIAL"],
+        ("PARTIAL â€” Partially Addressed", STATUS_COLORS["PARTIAL"],
          "Yellow/orange highlights indicate passages where some controls or evidence "
          "exist but are incomplete. Implementation details may be missing, or sub-controls "
          "are not fully covered."),
-        ("MET — Fully Compliant", STATUS_COLORS["MET"],
+        ("MET â€” Fully Compliant", STATUS_COLORS["MET"],
          "Green highlights indicate passages where full compliance evidence was found. "
          "Controls are properly implemented and documented."),
     ]
@@ -301,7 +306,7 @@ def _append_legend_page(doc: fitz.Document, total_annotations: int):
     footer_rect = fitz.Rect(50, 780, 545, 810)
     page.insert_textbox(
         footer_rect,
-        "Powered by ANVESHA — Multi-Modal Knowledge Graph Compliance Intelligence",
+        "Powered by ANVESHA â€” Multi-Modal Knowledge Graph Compliance Intelligence",
         fontsize=8,
         fontname="helv",
         color=(0.5, 0.4, 0.6),
@@ -341,7 +346,7 @@ def generate_annotated_html(report: dict) -> str:
         "  .footer { margin-top: 3rem; text-align: center; color: #666; font-size: 0.75rem; border-top: 1px solid #ffffff10; padding-top: 1rem; }",
         "</style>",
         "</head><body>",
-        "<h1>ANVESHA — Annotated Compliance Document</h1>",
+        "<h1>ANVESHA â€” Annotated Compliance Document</h1>",
         f"<p style='color:#888;font-size:0.85rem'>Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}</p>",
         "<div class='legend'>",
         f"  <div class='legend-item'><span class='legend-swatch' style='background:{STATUS_HTML_COLORS['GAP']}'></span> GAP (Non-Compliant)</div>",
@@ -375,13 +380,13 @@ def generate_annotated_html(report: dict) -> str:
         if location:
             loc_type = location.get("type", "")
             if loc_type == "page":
-                loc_str = f" — Page {location.get('page', '?')}"
+                loc_str = f" â€” Page {location.get('page', '?')}"
             elif loc_type == "timestamp":
                 start = location.get("start_time", 0)
                 end = location.get("end_time", 0)
-                loc_str = f" — {int(start // 60):02d}:{int(start % 60):02d} – {int(end // 60):02d}:{int(end % 60):02d}"
+                loc_str = f" â€” {int(start // 60):02d}:{int(start % 60):02d} â€“ {int(end // 60):02d}:{int(end % 60):02d}"
             elif loc_type == "cell":
-                loc_str = f" — Row {location.get('row', '?')}, Col {location.get('col', '?')}"
+                loc_str = f" â€” Row {location.get('row', '?')}, Col {location.get('col', '?')}"
 
         # Apply highlights to the text
         annotated_text = raw_text
@@ -396,7 +401,7 @@ def generate_annotated_html(report: dict) -> str:
                 css_class = status.lower()
                 replacement = (
                     f"<mark class='{css_class}' title='{ctrl_name}'>{matched}</mark>"
-                    f"<div class='control-note'>↑ {ctrl_name} [{status}]</div>"
+                    f"<div class='control-note'>â†‘ {ctrl_name} [{status}]</div>"
                 )
                 annotated_text = annotated_text[:idx] + replacement + annotated_text[idx + len(search_text):]
 
@@ -409,7 +414,7 @@ def generate_annotated_html(report: dict) -> str:
     if chunks_rendered == 0:
         html_parts.append("<p style='color:#888;text-align:center;padding:2rem;'>No source documents available for annotation.</p>")
 
-    html_parts.append("<div class='footer'>Powered by ANVESHA — Multi-Modal Knowledge Graph Compliance Intelligence</div>")
+    html_parts.append("<div class='footer'>Powered by ANVESHA â€” Multi-Modal Knowledge Graph Compliance Intelligence</div>")
     html_parts.append("</body></html>")
 
     return "\n".join(html_parts)
@@ -449,8 +454,8 @@ async def generate_annotated_export(report_id: str) -> tuple[bytes, str]:
 
             if ext == ".pdf":
                 try:
-                    # Annotate the PDF with all findings
-                    annotated_bytes = annotate_pdf(raw_bytes, all_findings)
+                    # Annotate the PDF with all findings and the graph analysis report
+                    annotated_bytes = annotate_pdf(raw_bytes, all_findings, report)
                     output_name = f"annotated_{filename}"
                     zf.writestr(output_name, annotated_bytes)
                     annotated_count += 1
@@ -479,9 +484,9 @@ async def generate_annotated_export(report_id: str) -> tuple[bytes, str]:
             f"Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}\n"
             f"Compliance Score: {report.get('compliance_score', 0)}%\n\n"
             f"Files in this archive:\n"
-            f"- annotated_*.pdf — Original PDFs with colored highlights\n"
-            f"- annotated_report.html — Full annotated report (open in browser)\n"
-            f"- original_* — Original non-PDF source files\n\n"
+            f"- annotated_*.pdf â€” Original PDFs with colored highlights\n"
+            f"- annotated_report.html â€” Full annotated report (open in browser)\n"
+            f"- original_* â€” Original non-PDF source files\n\n"
             f"Highlight Legend:\n"
             f"  RED    = GAP (non-compliant, missing controls)\n"
             f"  YELLOW = PARTIAL (partially addressed)\n"
@@ -495,3 +500,110 @@ async def generate_annotated_export(report_id: str) -> tuple[bytes, str]:
 
     logger.info(f"Annotated export complete: {annotated_count} files in {zip_filename}")
     return zip_buffer.read(), zip_filename
+
+def _append_analysis_summary_page(doc: fitz.Document, report: dict):
+    """Append a Graph Analysis Summary page at the end of the annotated PDF."""
+    page = doc.new_page(width=595, height=842)
+    
+    # Title
+    title_rect = fitz.Rect(50, 40, 545, 80)
+    page.insert_textbox(
+        title_rect,
+        "ANVESHA — Graph Analysis Summary",
+        fontsize=16,
+        fontname="helv",
+        color=(0.3, 0.2, 0.5),
+        align=fitz.TEXT_ALIGN_CENTER,
+    )
+    
+    # Subtitle
+    sub_rect = fitz.Rect(50, 85, 545, 110)
+    page.insert_textbox(
+        sub_rect,
+        f"Overall Compliance Score: {report.get('compliance_score', 0)}%",
+        fontsize=12,
+        fontname="helv",
+        color=(0.1, 0.1, 0.1),
+        align=fitz.TEXT_ALIGN_CENTER,
+    )
+    
+    # Divider
+    page.draw_line(fitz.Point(50, 120), fitz.Point(545, 120), color=(0.7, 0.7, 0.7), width=0.5)
+    
+    # Summary Metrics
+    y_offset = 140
+    summary = report.get("summary", {})
+    
+    metrics_text = (
+        f"Total Controls Analyzed: {summary.get('total_controls', 0)}\n"
+        f"MET: {summary.get('met_controls', 0)} | "
+        f"PARTIAL: {summary.get('partial_controls', 0)} | "
+        f"GAP: {summary.get('gap_controls', 0)}"
+    )
+    
+    metrics_rect = fitz.Rect(50, y_offset, 545, y_offset + 50)
+    page.insert_textbox(
+        metrics_rect,
+        metrics_text,
+        fontsize=10,
+        fontname="helv",
+        color=(0.2, 0.2, 0.2),
+        align=fitz.TEXT_ALIGN_CENTER,
+    )
+    
+    y_offset += 60
+    
+    # Detailed Findings
+    page.insert_textbox(
+        fitz.Rect(50, y_offset, 545, y_offset + 20),
+        "Detailed Audit Findings (from Graph Analysis):",
+        fontsize=11,
+        fontname="helv",
+        color=(0.3, 0.2, 0.5),
+    )
+    
+    y_offset += 25
+    
+    for control in report.get("controls", []):
+        if y_offset > 750:
+            # Create a new page if we run out of space
+            page = doc.new_page(width=595, height=842)
+            y_offset = 50
+            
+        status = control.get("status", "GAP")
+        name = control.get("name", "Unknown Control")
+        reasoning = control.get("reasoning", "No reasoning provided.")
+        
+        status_color = STATUS_COLORS.get(status, (0, 0, 0))
+        
+        # Control Header
+        page.insert_textbox(
+            fitz.Rect(50, y_offset, 545, y_offset + 15),
+            f"[{status}] {name}",
+            fontsize=9,
+            fontname="helv",
+            color=status_color,
+        )
+        y_offset += 15
+        
+        # Reasoning
+        reasoning_rect = fitz.Rect(60, y_offset, 545, y_offset + 50)
+        page.insert_textbox(
+            reasoning_rect,
+            f"Reasoning: {reasoning}",
+            fontsize=8,
+            fontname="helv",
+            color=(0.3, 0.3, 0.3),
+        )
+        y_offset += 55
+        
+    # Footer
+    footer_rect = fitz.Rect(50, 800, 545, 820)
+    page.insert_textbox(
+        footer_rect,
+        "Powered by ANVESHA — Multi-Modal Knowledge Graph Compliance Intelligence",
+        fontsize=8,
+        fontname="helv",
+        color=(0.5, 0.4, 0.6),
+        align=fitz.TEXT_ALIGN_CENTER,
+    )
