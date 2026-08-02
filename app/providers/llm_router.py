@@ -433,15 +433,15 @@ class LLMRouter:
         if response_format:
             kwargs["response_format"] = response_format
 
-        for attempt in range(3):
+        for attempt in range(4):
             try:
                 response = await self._groq_client.chat.completions.create(**kwargs)
                 return response.choices[0].message.content
             except Exception as e:
                 err_str = str(e).lower()
-                if ("429" in err_str or "rate limit" in err_str) and attempt < 2:
-                    wait_s = 2.0 * (attempt + 1)
-                    logger.warning(f"Groq rate limit hit (429), backing off for {wait_s}s (attempt {attempt+1}/3)...")
+                if ("429" in err_str or "rate limit" in err_str) and attempt < 3:
+                    wait_s = 3.0 * (attempt + 1)
+                    logger.warning(f"Groq rate limit hit (429), backing off for {wait_s}s (attempt {attempt+1}/4)...")
                     await asyncio.sleep(wait_s)
                 else:
                     raise
@@ -462,14 +462,26 @@ class LLMRouter:
             self._settings.gemini_model,
             system_instruction=system_prompt if system_prompt else None,
         )
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.GenerationConfig(
-                temperature=temperature,
-                max_output_tokens=max_tokens,
-            ),
-        )
-        return response.text
+        
+        for attempt in range(4):
+            try:
+                response = await asyncio.to_thread(
+                    model.generate_content,
+                    prompt,
+                    generation_config=genai.GenerationConfig(
+                        temperature=temperature,
+                        max_output_tokens=max_tokens,
+                    ),
+                )
+                return response.text
+            except Exception as e:
+                err_str = str(e).lower()
+                if ("429" in err_str or "quota" in err_str) and attempt < 3:
+                    wait_s = 5.0 * (attempt + 1)
+                    logger.warning(f"Gemini quota/rate limit hit (429), backing off for {wait_s}s (attempt {attempt+1}/4)...")
+                    await asyncio.sleep(wait_s)
+                else:
+                    raise
 
     async def _openrouter_generate(
         self,
@@ -489,22 +501,33 @@ class LLMRouter:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
-        response = await self._openrouter_client.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {self._settings.openrouter_api_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": self._settings.openrouter_model,
-                "messages": messages,
-                "temperature": temperature,
-                "max_tokens": max_tokens,
-            },
-        )
-        response.raise_for_status()
-        data = response.json()
-        return data["choices"][0]["message"]["content"]
+        for attempt in range(4):
+            try:
+                response = await self._openrouter_client.post(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {self._settings.openrouter_api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": self._settings.openrouter_model,
+                        "messages": messages,
+                        "temperature": temperature,
+                        "max_tokens": max_tokens,
+                    },
+                )
+                response.raise_for_status()
+                data = response.json()
+                return data["choices"][0]["message"]["content"]
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 429 and attempt < 3:
+                    wait_s = 3.0 * (attempt + 1)
+                    logger.warning(f"OpenRouter rate limit hit (429), backing off for {wait_s}s (attempt {attempt+1}/4)...")
+                    await asyncio.sleep(wait_s)
+                else:
+                    raise
+            except Exception as e:
+                raise
 
     async def _fallback_generate(
         self,
