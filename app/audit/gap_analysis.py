@@ -9,6 +9,8 @@ detailed reasoning, and remediation tasks.
 import logging
 import uuid
 import time
+import json
+import os
 from typing import Optional, Any
 from datetime import datetime, timezone
 
@@ -68,7 +70,25 @@ DEFAULT_COMPLIANCE_BASELINE = [
 
 # In-memory storage for past audit reports
 _audit_reports: dict[str, dict] = {}
+_audit_reports_file = os.path.join(os.path.dirname(__file__), "audit_reports.json")
 
+def _load_reports():
+    global _audit_reports
+    if os.path.exists(_audit_reports_file):
+        try:
+            with open(_audit_reports_file, 'r', encoding='utf-8') as f:
+                _audit_reports = json.load(f)
+        except Exception as e:
+            logger.error(f"Failed to load audit reports: {e}")
+
+def save_audit_reports():
+    try:
+        with open(_audit_reports_file, 'w', encoding='utf-8') as f:
+            json.dump(_audit_reports, f, indent=2)
+    except Exception as e:
+        logger.error(f"Failed to save audit reports: {e}")
+
+_load_reports()
 
 def get_audit_reports() -> dict:
     """Get the in-memory audit reports store."""
@@ -203,11 +223,16 @@ async def run_gap_analysis() -> dict:
             )
             
             # Using generate_json to enforce the structured schema
-            analysis = await llm_router.generate_json(
-                prompt=user_prompt,
-                system_prompt=GAP_ANALYSIS_SYSTEM_PROMPT,
-                provider=Provider.GEMINI, # Gemini is great for structured analysis/audit task
-                temperature=0.0
+            # Use GROQ for speed (30 RPM) with JSON mode; fallback to GEMINI handled by router
+            import asyncio
+            analysis = await asyncio.wait_for(
+                llm_router.generate_json(
+                    prompt=user_prompt,
+                    system_prompt=GAP_ANALYSIS_SYSTEM_PROMPT,
+                    provider=Provider.GROQ,  # Groq is faster (30 RPM), supports JSON mode
+                    temperature=0.0
+                ),
+                timeout=45.0  # 45s max per control
             )
 
             # Validate LLM output format
@@ -246,6 +271,20 @@ async def run_gap_analysis() -> dict:
                 "remediation": analysis.get("remediation", [])
             })
 
+        except asyncio.TimeoutError:
+            logger.error(f"Audit analysis timed out for control {req['name']}")
+            gap_count += 1
+            audited_results.append({
+                "requirement_id": req["id"],
+                "name": req["name"],
+                "framework": req.get("framework") or "System",
+                "category": req.get("category") or "General Security",
+                "description": req["description"],
+                "status": "GAP",
+                "evidence_found": [],
+                "reasoning": "Audit evaluation timed out. Please retry or check API connectivity.",
+                "remediation": ["Retry the compliance audit when API is available."]
+            })
         except Exception as e:
             logger.error(f"Audit analysis failed for control {req['name']}: {e}")
             gap_count += 1
@@ -285,6 +324,7 @@ async def run_gap_analysis() -> dict:
 
     # Store report in-memory
     _audit_reports[report_id] = report
+    save_audit_reports()
     logger.info(f"Audit complete: score={compliance_score}%, MET={met_count}, GAP={gap_count} in {elapsed:.2f}s")
     
     return report
