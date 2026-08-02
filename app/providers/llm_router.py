@@ -105,8 +105,17 @@ class LLMRouter:
         if settings.openrouter_api_key:
             logger.info("✓ OpenRouter fallback available")
 
-    def _best_available_provider(self, preferred: Provider, exclude: Optional[Provider] = None) -> Provider:
-        """Pick the best available provider, falling back if the preferred one isn't configured."""
+    def _best_available_provider(
+        self,
+        preferred: Provider,
+        exclude: Optional[Provider] = None,
+        exclude_set: Optional[set[Provider]] = None,
+    ) -> Provider:
+        """Pick the best available provider, falling back if the preferred one isn't configured or is excluded."""
+        excludes = set(exclude_set or set())
+        if exclude:
+            excludes.add(exclude)
+
         provider_checks = {
             Provider.GROQ: self._groq_client is not None,
             Provider.GEMINI: self._gemini_configured,
@@ -114,14 +123,14 @@ class LLMRouter:
         }
 
         # If preferred is available and not excluded, use it
-        if preferred != exclude and provider_checks.get(preferred, False):
+        if preferred not in excludes and provider_checks.get(preferred, False):
             return preferred
 
         # Otherwise find first available (order: Groq > Gemini > OpenRouter)
         for p in [Provider.GROQ, Provider.GEMINI, Provider.OPENROUTER]:
-            if p != exclude and provider_checks.get(p, False):
+            if p not in excludes and provider_checks.get(p, False):
                 if p != preferred:
-                    logger.info(f"Provider {preferred.value} unavailable, falling back to {p.value}")
+                    logger.info(f"Provider {preferred.value} unavailable/excluded, falling back to {p.value}")
                 return p
 
         # Nothing available — return preferred and let it error naturally
@@ -179,11 +188,17 @@ class LLMRouter:
         system_prompt: str = "",
         provider: Provider = Provider.GROQ,
         temperature: float = 0.0,
+        tried_providers: Optional[set[Provider]] = None,
     ) -> dict:
-        """Generate structured JSON output from an LLM. Falls back across providers."""
-        # Auto-select available provider if requested one isn't configured
-        provider = self._best_available_provider(provider)
+        """Generate structured JSON output from an LLM. Falls back across providers in sequence."""
+        if tried_providers is None:
+            tried_providers = set()
 
+        # Auto-select available provider excluding already-tried ones
+        provider = self._best_available_provider(provider, exclude_set=tried_providers)
+        tried_providers.add(provider)
+
+        response = None
         try:
             if provider == Provider.GROQ:
                 response = await self._groq_generate(
@@ -205,15 +220,17 @@ class LLMRouter:
                     f"{prompt}\n\nRespond ONLY with valid JSON.", system_prompt, provider, temperature
                 )
         except Exception as e:
-            logger.error(f"generate_json failed with {provider}: {e}")
-            # Try fallback provider
-            fallback = self._best_available_provider(provider, exclude=provider)
-            if fallback != provider:
+            logger.warning(f"generate_json failed with {provider}: {e}")
+            # Try remaining providers in fallback order
+            remaining = [p for p in [Provider.GROQ, Provider.GEMINI, Provider.OPENROUTER] if p not in tried_providers]
+            for fallback in remaining:
                 logger.info(f"generate_json retrying with fallback provider {fallback}")
                 try:
-                    return await self.generate_json(prompt, system_prompt, fallback, temperature)
+                    return await self.generate_json(
+                        prompt, system_prompt, provider=fallback, temperature=temperature, tried_providers=tried_providers
+                    )
                 except Exception as e2:
-                    logger.error(f"generate_json fallback also failed: {e2}")
+                    logger.warning(f"generate_json fallback {fallback} also failed: {e2}")
             return {"error": str(e)}
 
         # Parse JSON from response
@@ -317,28 +334,56 @@ class LLMRouter:
             logger.error(f"Gemini vision failed: {e}")
             raise
 
+    # --- Embedding cache (LRU, maxsize=512) ---
+    _EMBEDDING_CACHE_MAXSIZE = 512
+
     async def embed(self, text: str) -> list[float]:
         """
         Generate text embedding using Gemini embedding model.
+        Results are cached in-memory (LRU, max 512 entries) to avoid
+        redundant API calls for repeated queries or entity descriptions.
 
         Returns:
             List of floats (embedding vector)
         """
-        if not self._gemini_configured:
-            # Fallback: simple TF-IDF style hash embedding
-            return self._fallback_embed(text)
+        import hashlib
 
-        await self._gemini_limiter.acquire()
-        try:
-            result = genai.embed_content(
-                model="models/text-embedding-004",
-                content=text,
-                task_type="retrieval_document",
-            )
-            return result["embedding"]
-        except Exception as e:
-            logger.warning(f"Gemini embedding failed, using fallback: {e}")
-            return self._fallback_embed(text)
+        # Initialize cache on first use (instance-level)
+        if not hasattr(self, '_embedding_cache'):
+            self._embedding_cache: dict[str, list[float]] = {}
+            self._embedding_cache_order: list[str] = []
+
+        # Cache key is a hash of the text content
+        cache_key = hashlib.sha256(text.encode()).hexdigest()[:16]
+
+        if cache_key in self._embedding_cache:
+            logger.debug(f"Embedding cache hit for text hash {cache_key}")
+            return self._embedding_cache[cache_key]
+
+        # Generate embedding
+        if not self._gemini_configured:
+            embedding = self._fallback_embed(text)
+        else:
+            await self._gemini_limiter.acquire()
+            try:
+                result = genai.embed_content(
+                    model="models/text-embedding-004",
+                    content=text,
+                    task_type="retrieval_document",
+                )
+                embedding = result["embedding"]
+            except Exception as e:
+                logger.warning(f"Gemini embedding failed, using fallback: {e}")
+                embedding = self._fallback_embed(text)
+
+        # Store in cache with LRU eviction
+        self._embedding_cache[cache_key] = embedding
+        self._embedding_cache_order.append(cache_key)
+        if len(self._embedding_cache) > self._EMBEDDING_CACHE_MAXSIZE:
+            evicted_key = self._embedding_cache_order.pop(0)
+            self._embedding_cache.pop(evicted_key, None)
+
+        return embedding
 
     def _fallback_embed(self, text: str) -> list[float]:
         """
@@ -388,8 +433,18 @@ class LLMRouter:
         if response_format:
             kwargs["response_format"] = response_format
 
-        response = await self._groq_client.chat.completions.create(**kwargs)
-        return response.choices[0].message.content
+        for attempt in range(3):
+            try:
+                response = await self._groq_client.chat.completions.create(**kwargs)
+                return response.choices[0].message.content
+            except Exception as e:
+                err_str = str(e).lower()
+                if ("429" in err_str or "rate limit" in err_str) and attempt < 2:
+                    wait_s = 2.0 * (attempt + 1)
+                    logger.warning(f"Groq rate limit hit (429), backing off for {wait_s}s (attempt {attempt+1}/3)...")
+                    await asyncio.sleep(wait_s)
+                else:
+                    raise
 
     async def _gemini_generate(
         self,

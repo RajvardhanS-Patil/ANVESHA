@@ -109,31 +109,50 @@ RELATION_TYPES = [
 ]
 
 
+# Pre-computed lookup structures for O(1) normalization
+_ALL_TYPES_LOWER = {t.lower(): t for t in ALL_ENTITY_TYPES}
+
+# Pre-built reverse index: for each word that appears in a normalization key,
+# map it to the normalized value. Enables O(1) partial matching.
+_PARTIAL_MATCH_INDEX: dict[str, str] = {}
+for _key, _value in TYPE_NORMALIZATION.items():
+    # Index each word fragment (3+ chars) from the key
+    for _word in _key.split():
+        if len(_word) >= 3:
+            _PARTIAL_MATCH_INDEX[_word] = _value
+    _PARTIAL_MATCH_INDEX[_key] = _value
+
+
 def normalize_entity_type(proposed_type: str) -> str:
     """
     Normalize a proposed entity type to the ontology.
 
-    1. Check if it's already a valid core/extended type
-    2. Try normalization map
-    3. Default to closest match or 'Asset' as catch-all
+    1. Check if it's already a valid core/extended type (O(1) dict lookup)
+    2. Try normalization map (O(1) dict lookup)
+    3. Try partial match via reverse index (O(1) dict lookup)
+    4. Default to 'Asset' as catch-all
     """
     if not proposed_type:
         return "Asset"
 
-    # Direct match (case-insensitive)
-    for t in ALL_ENTITY_TYPES:
-        if proposed_type.lower() == t.lower():
-            return t
+    proposed_lower = proposed_type.lower()
 
-    # Normalization map
-    normalized = TYPE_NORMALIZATION.get(proposed_type.lower())
+    # O(1) direct match against all known types
+    if proposed_lower in _ALL_TYPES_LOWER:
+        return _ALL_TYPES_LOWER[proposed_lower]
+
+    # O(1) normalization map lookup
+    normalized = TYPE_NORMALIZATION.get(proposed_lower)
     if normalized:
         return normalized
 
-    # Partial match
-    proposed_lower = proposed_type.lower()
-    for key, value in TYPE_NORMALIZATION.items():
-        if key in proposed_lower or proposed_lower in key:
+    # O(1) partial match via reverse index
+    if proposed_lower in _PARTIAL_MATCH_INDEX:
+        return _PARTIAL_MATCH_INDEX[proposed_lower]
+
+    # Check if proposed_lower contains any indexed key
+    for key, value in _PARTIAL_MATCH_INDEX.items():
+        if key in proposed_lower:
             return value
 
     logger.debug(f"Unknown entity type '{proposed_type}' — defaulting to 'Asset'")

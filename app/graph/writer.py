@@ -100,83 +100,125 @@ async def write_entities_to_graph(
 
     router = get_llm_router()
     start_time = time.perf_counter()
+
+    # --- Phase 1: Generate embeddings in parallel ---
+    embeddings: list[Optional[list[float]]] = [None] * len(entities)
+    if generate_embeddings:
+        import asyncio
+
+        async def _embed_entity(idx: int, entity: dict) -> tuple[int, Optional[list[float]]]:
+            embed_text = f"{entity['name']}: {entity.get('description', '')} {entity.get('exact_span', '')}"
+            try:
+                return idx, await router.embed(embed_text)
+            except Exception as e:
+                logger.warning(f"Embedding generation failed for {entity['name']}: {e}")
+                return idx, None
+
+        embed_tasks = [_embed_entity(i, e) for i, e in enumerate(entities)]
+        embed_results = await asyncio.gather(*embed_tasks, return_exceptions=True)
+        for result in embed_results:
+            if isinstance(result, Exception):
+                continue
+            idx, emb = result
+            embeddings[idx] = emb
+
+    # --- Phase 2: Batch write all entities with UNWIND ---
+    now = datetime.now(timezone.utc).isoformat()
+    batch = []
+    for i, entity in enumerate(entities):
+        item = {
+            "id": entity["id"],
+            "name": entity["name"],
+            "entity_type": entity["entity_type"],
+            "description": entity.get("description", ""),
+            "exact_span": entity.get("exact_span", ""),
+            "source_doc_id": entity.get("source_doc_id", ""),
+            "source_filename": entity.get("source_filename", ""),
+            "source_location": str(entity.get("source_location", "")),
+            "valid_from": entity.get("valid_from", ""),
+            "valid_to": entity.get("valid_to"),
+            "extraction_confidence": entity.get("extraction_confidence", 0.5),
+            "span_validated": entity.get("span_validated", False),
+            "now": now,
+            "embedding": embeddings[i],
+        }
+        batch.append(item)
+
     written = 0
     errors = 0
 
-    for entity in entities:
-        try:
-            # Generate embedding for the entity
-            embedding = None
-            if generate_embeddings:
-                embed_text = f"{entity['name']}: {entity.get('description', '')} {entity.get('exact_span', '')}"
-                try:
-                    embedding = await router.embed(embed_text)
-                except Exception as e:
-                    logger.warning(f"Embedding generation failed for {entity['name']}: {e}")
+    try:
+        query = """
+        UNWIND $batch AS item
+        MERGE (e:Entity {name: item.name, entity_type: item.entity_type})
+        ON CREATE SET
+            e.id = item.id,
+            e.description = item.description,
+            e.exact_span = item.exact_span,
+            e.source_doc_id = item.source_doc_id,
+            e.source_filename = item.source_filename,
+            e.source_location = item.source_location,
+            e.valid_from = item.valid_from,
+            e.valid_to = item.valid_to,
+            e.extraction_confidence = item.extraction_confidence,
+            e.span_validated = item.span_validated,
+            e.created_at = item.now
+        ON MATCH SET
+            e.description = CASE WHEN size(e.description) < size(item.description) THEN item.description ELSE e.description END,
+            e.extraction_confidence = CASE WHEN item.extraction_confidence > e.extraction_confidence THEN item.extraction_confidence ELSE e.extraction_confidence END,
+            e.updated_at = item.now
+        WITH e, item
+        WHERE item.embedding IS NOT NULL
+        SET e.embedding = item.embedding
+        RETURN count(e) AS written_count
+        """
 
-            # Write entity node
-            query = """
-            MERGE (e:Entity {name: $name, entity_type: $entity_type})
-            ON CREATE SET
-                e.id = $id,
-                e.description = $description,
-                e.exact_span = $exact_span,
-                e.source_doc_id = $source_doc_id,
-                e.source_filename = $source_filename,
-                e.source_location = $source_location,
-                e.valid_from = $valid_from,
-                e.valid_to = $valid_to,
-                e.extraction_confidence = $extraction_confidence,
-                e.span_validated = $span_validated,
-                e.created_at = $now
-            ON MATCH SET
-                e.description = CASE WHEN size(e.description) < size($description) THEN $description ELSE e.description END,
-                e.extraction_confidence = CASE WHEN $extraction_confidence > e.extraction_confidence THEN $extraction_confidence ELSE e.extraction_confidence END,
-                e.updated_at = $now
-            """
-            params = {
-                "id": entity["id"],
-                "name": entity["name"],
-                "entity_type": entity["entity_type"],
-                "description": entity.get("description", ""),
-                "exact_span": entity.get("exact_span", ""),
-                "source_doc_id": entity.get("source_doc_id", ""),
-                "source_filename": entity.get("source_filename", ""),
-                "source_location": str(entity.get("source_location", "")),
-                "valid_from": entity.get("valid_from", ""),
-                "valid_to": entity.get("valid_to"),
-                "extraction_confidence": entity.get("extraction_confidence", 0.5),
-                "span_validated": entity.get("span_validated", False),
-                "now": datetime.now(timezone.utc).isoformat(),
-            }
+        result = await client.execute_write(query, {"batch": batch})
+        written = result[0]["written_count"] if result else 0
 
-            # Add embedding if available
-            if embedding:
-                query += "\nSET e.embedding = $embedding"
-                params["embedding"] = embedding
-
-            query += "\nRETURN e.id AS id"
-
-            await client.execute_write(query, params)
-
-            # Add entity type as label
-            label_query = f"""
-            MATCH (e:Entity {{name: $name, entity_type: $entity_type}})
-            SET e:{entity['entity_type']}
-            """
+    except Exception as e:
+        logger.error(f"Batch entity write failed, falling back to individual writes: {e}")
+        # Fallback: write one-by-one if batch fails
+        for i, entity in enumerate(entities):
             try:
-                await client.execute_write(label_query, {
-                    "name": entity["name"],
-                    "entity_type": entity["entity_type"],
-                })
-            except Exception:
-                pass  # Label setting may fail if type has special chars
+                single_query = """
+                MERGE (e:Entity {name: $name, entity_type: $entity_type})
+                ON CREATE SET
+                    e.id = $id, e.description = $description,
+                    e.exact_span = $exact_span, e.source_doc_id = $source_doc_id,
+                    e.source_filename = $source_filename,
+                    e.source_location = $source_location,
+                    e.extraction_confidence = $extraction_confidence,
+                    e.created_at = $now
+                ON MATCH SET
+                    e.updated_at = $now
+                RETURN e.id AS id
+                """
+                params = {**batch[i]}
+                params.pop("embedding", None)
+                await client.execute_write(single_query, params)
+                if embeddings[i]:
+                    await client.execute_write(
+                        "MATCH (e:Entity {name: $name, entity_type: $entity_type}) SET e.embedding = $embedding",
+                        {"name": entity["name"], "entity_type": entity["entity_type"], "embedding": embeddings[i]}
+                    )
+                written += 1
+            except Exception as e2:
+                logger.error(f"Failed to write entity '{entity.get('name', '?')}': {e2}")
+                errors += 1
 
-            written += 1
-
-        except Exception as e:
-            logger.error(f"Failed to write entity '{entity.get('name', '?')}': {e}")
-            errors += 1
+    # --- Phase 3: Batch set entity type labels ---
+    unique_types = set(e["entity_type"] for e in entities)
+    for etype in unique_types:
+        try:
+            label_query = f"""
+            MATCH (e:Entity {{entity_type: $entity_type}})
+            WHERE NOT e:{etype}
+            SET e:{etype}
+            """
+            await client.execute_write(label_query, {"entity_type": etype})
+        except Exception:
+            pass  # Label setting may fail if type has special chars
 
     elapsed = time.perf_counter() - start_time
     logger.info(f"Entities written: {written}/{len(entities)} in {elapsed:.2f}s ({errors} errors)")

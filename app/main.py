@@ -159,11 +159,13 @@ async def serve_frontend():
 # --- Include API routers ---
 from app.ingestion.router import router as ingestion_router
 from app.retrieval.router import router as retrieval_router
+from app.retrieval.diagnostics import router as diagnostics_router
 from app.verification.router import router as verification_router
 from app.audit.router import router as audit_router
 from eval.router import router as eval_router
 app.include_router(ingestion_router, prefix="/api", tags=["Ingestion"])
 app.include_router(retrieval_router, prefix="/api", tags=["Retrieval"])
+app.include_router(diagnostics_router, prefix="/api", tags=["Diagnostics"])
 app.include_router(verification_router, prefix="/api", tags=["Verification"])
 app.include_router(audit_router, prefix="/api", tags=["Audit"])
 app.include_router(eval_router, prefix="/api", tags=["Evaluation"])

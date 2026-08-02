@@ -5,6 +5,7 @@ Uses Groq structured JSON output for ontology-constrained extraction.
 Every extracted entity is span-validated against the source text.
 """
 
+import asyncio
 import logging
 import time
 import uuid
@@ -21,6 +22,9 @@ from app.ingestion.base import IngestedChunk
 from app.providers.llm_router import get_llm_router, Provider
 
 logger = logging.getLogger(__name__)
+
+# Bounded concurrency for parallel extraction (respects Groq TPM / RPM limits)
+_EXTRACTION_SEMAPHORE = asyncio.Semaphore(2)
 
 
 async def extract_entities_from_chunk(
@@ -106,16 +110,36 @@ async def extract_entities_from_chunks(
     Extract entities and relationships from multiple chunks.
     Deduplicates entities across chunks.
 
+    Uses bounded parallelism (semaphore) to process chunks concurrently
+    while respecting API rate limits.
+
     Returns:
         Dict with 'entities', 'relationships', and 'stats'
     """
     start_time = time.perf_counter()
+
+    async def _extract_with_semaphore(i: int, chunk: IngestedChunk) -> dict:
+        """Extract from a single chunk, guarded by semaphore."""
+        async with _EXTRACTION_SEMAPHORE:
+            logger.info(f"Extracting from chunk {i+1}/{len(chunks)}: {chunk.chunk_id[:8]}")
+            return await extract_entities_from_chunk(chunk, min_confidence)
+
+    # Run all extractions in parallel with bounded concurrency
+    tasks = [
+        _extract_with_semaphore(i, chunk)
+        for i, chunk in enumerate(chunks)
+    ]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
     all_entities = []
     all_relationships = []
+    errors = 0
 
-    for i, chunk in enumerate(chunks):
-        logger.info(f"Extracting from chunk {i+1}/{len(chunks)}: {chunk.chunk_id[:8]}")
-        result = await extract_entities_from_chunk(chunk, min_confidence)
+    for i, result in enumerate(results):
+        if isinstance(result, Exception):
+            logger.error(f"Chunk {i} extraction raised: {result}")
+            errors += 1
+            continue
         all_entities.extend(result["entities"])
         all_relationships.extend(result["relationships"])
 

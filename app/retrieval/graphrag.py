@@ -162,6 +162,51 @@ async def query_graphrag(
         # No evidence — try text-based fallback from chunk store
         evidence_text = await _fallback_text_search(question)
 
+    # --- Step 4.5: Corrective RAG — grade evidence and rewrite if weak ---
+    corrective_rewrite = None
+    if evidence_text and evidence_text != "No evidence found.":
+        relevance_grade = await _grade_evidence_relevance(question, evidence_text, router)
+        if relevance_grade < 0.5:
+            logger.info(
+                f"Evidence relevance low ({relevance_grade:.2f}), "
+                f"attempting corrective query rewrite"
+            )
+            rewritten_question = await _rewrite_query(question, router)
+            if rewritten_question and rewritten_question != question:
+                corrective_rewrite = rewritten_question
+                logger.info(f"Rewritten query: {rewritten_question[:100]}")
+                # Re-retrieve with rewritten query
+                try:
+                    new_embedding = await router.embed(rewritten_question)
+                    if client.is_connected():
+                        new_seeds = await client.vector_search(
+                            query_embedding=new_embedding,
+                            top_k=top_k_seeds,
+                            min_score=0.3,
+                        )
+                        if new_seeds:
+                            new_seed_ids = [s["entity"]["id"] for s in new_seeds if "entity" in s]
+                            if new_seed_ids:
+                                new_subgraph = await client.k_hop_traversal(
+                                    entity_ids=new_seed_ids,
+                                    k_hops=k_hops,
+                                    max_nodes=max_context_nodes,
+                                )
+                                new_evidence = _serialize_evidence(new_seeds, new_subgraph)
+                                new_grade = await _grade_evidence_relevance(
+                                    question, new_evidence, router
+                                )
+                                if new_grade > relevance_grade:
+                                    logger.info(
+                                        f"Corrective retrieval improved: "
+                                        f"{relevance_grade:.2f} → {new_grade:.2f}"
+                                    )
+                                    seed_entities = new_seeds
+                                    evidence_subgraph = new_subgraph
+                                    evidence_text = new_evidence
+                except Exception as e:
+                    logger.warning(f"Corrective retrieval failed: {e}")
+
     # --- Step 5: Generate answer ---
     try:
         user_prompt = GRAPHRAG_USER_PROMPT.format(
@@ -210,6 +255,7 @@ async def query_graphrag(
                 "evidence_nodes": len(evidence_subgraph.get("nodes", [])),
                 "evidence_edges": len(evidence_subgraph.get("edges", [])),
                 "processing_time_seconds": round(elapsed, 2),
+                "corrective_rewrite": corrective_rewrite,
             },
             "generated_at": datetime.now(timezone.utc).isoformat(),
         }
@@ -220,6 +266,7 @@ async def query_graphrag(
         logger.info(
             f"GraphRAG answer [{answer_id[:8]}]: confidence={confidence}, "
             f"{len(citations)} citations, {elapsed:.2f}s"
+            f"{' (corrective rewrite applied)' if corrective_rewrite else ''}"
         )
 
         return result
@@ -273,42 +320,91 @@ async def _fallback_text_search(question: str) -> str:
 
 
 def _serialize_evidence(seed_entities: list, subgraph: dict) -> str:
-    """Serialize seed entities and evidence subgraph into text for LLM."""
+    """
+    Serialize seed entities and evidence subgraph into structured text for LLM.
+
+    Uses reasoning-path format (inspired by knowledge_graph_rag_citations):
+    each edge is rendered as a traversal chain with source provenance per hop,
+    giving the LLM concrete paths for accurate citation generation.
+    """
     parts = []
 
-    # Seed entities with scores
+    # Build a node lookup for edge resolution
+    nodes = subgraph.get("nodes", [])
+    node_map: dict[str, dict] = {}
+    for node in nodes:
+        if isinstance(node, dict) and node.get("id"):
+            node_map[node["id"]] = node
+
+    # Seed entities with scores and exact spans
     if seed_entities:
         parts.append("=== SEED ENTITIES (most relevant to query) ===")
         for s in seed_entities[:10]:
             entity = s.get("entity", {})
             score = s.get("score", 0)
+            span = entity.get('exact_span', '')
+            source_info = f"{entity.get('source_doc_id', 'N/A')} — {entity.get('source_location', 'N/A')}"
             parts.append(
                 f"- {entity.get('name', '?')} ({entity.get('entity_type', '?')}) "
                 f"[relevance: {score:.2f}]\n"
                 f"  Description: {entity.get('description', 'N/A')}\n"
-                f"  Source: {entity.get('source_doc_id', 'N/A')} — {entity.get('source_location', 'N/A')}\n"
-                f"  Span: \"{entity.get('exact_span', 'N/A')}\""
+                f"  Source: {source_info}\n"
+                f"  Verbatim: \"{span}\"" if span else ""
             )
 
-    # Subgraph nodes
-    nodes = subgraph.get("nodes", [])
+    # Evidence subgraph nodes with verbatim spans
     if nodes:
         parts.append("\n=== EVIDENCE SUBGRAPH NODES ===")
         for node in nodes[:30]:
-            parts.append(
+            if not isinstance(node, dict):
+                continue
+            span = node.get('exact_span', '')
+            node_entry = (
                 f"- {node.get('name', '?')} ({node.get('entity_type', '?')})\n"
                 f"  Description: {node.get('description', 'N/A')}\n"
                 f"  Source: {node.get('source_doc_id', 'N/A')} — {node.get('source_location', 'N/A')}"
             )
+            if span:
+                node_entry += f'\n  Verbatim: "{span}"'
+            parts.append(node_entry)
 
-    # Subgraph edges
+    # Reasoning paths — structured traversal chains with provenance
     edges = subgraph.get("edges", [])
     if edges:
-        parts.append("\n=== RELATIONSHIPS ===")
+        parts.append("\n=== REASONING PATHS (entity → relationship → entity) ===")
         for edge in edges[:30]:
-            parts.append(
-                f"- {edge.get('source', '?')} —[{edge.get('type', '?')}]→ {edge.get('target', '?')}"
-            )
+            if not isinstance(edge, dict):
+                continue
+            source_id = edge.get('source', '?')
+            target_id = edge.get('target', '?')
+            rel_type = edge.get('type', '?')
+
+            # Resolve node names and sources from the lookup
+            source_node = node_map.get(source_id, {})
+            target_node = node_map.get(target_id, {})
+
+            source_name = source_node.get('name', source_id)
+            target_name = target_node.get('name', target_id)
+            source_src = source_node.get('source_doc_id', '')
+            target_src = target_node.get('source_doc_id', '')
+
+            path_line = f"- {source_name} —[{rel_type}]→ {target_name}"
+
+            # Add provenance per hop
+            provenance_parts = []
+            if source_src:
+                provenance_parts.append(f"from: {source_src}")
+            if target_src and target_src != source_src:
+                provenance_parts.append(f"to: {target_src}")
+            if provenance_parts:
+                path_line += f"  ({', '.join(provenance_parts)})"
+
+            # Edge description if available
+            edge_props = edge.get('properties', {})
+            if isinstance(edge_props, dict) and edge_props.get('description'):
+                path_line += f"\n    Context: {edge_props['description']}"
+
+            parts.append(path_line)
 
     return "\n".join(parts) if parts else "No evidence found."
 
@@ -365,3 +461,93 @@ def _error_response(answer_id: str, question: str, error: str, start_time: float
         },
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
+
+
+# --- Corrective RAG helpers (inspired by corrective_rag template) ---
+
+RELEVANCE_GRADING_PROMPT = """You are a relevance grader. Given a compliance question and retrieved evidence,
+rate how relevant the evidence is to answering the question.
+
+QUESTION: {question}
+
+EVIDENCE (first 2000 chars):
+{evidence}
+
+Respond with ONLY a JSON object: {{"relevance_score": 0.0 to 1.0, "reasoning": "brief explanation"}}
+
+Score guide:
+- 1.0: Evidence directly answers the question with specific facts
+- 0.7: Evidence is clearly related and contains useful context
+- 0.5: Evidence is tangentially related
+- 0.3: Evidence mentions some terms but isn't really about the question
+- 0.0: Evidence is completely unrelated"""
+
+
+QUERY_REWRITE_PROMPT = """You are a compliance query optimizer. The original question retrieved poor evidence
+from a knowledge graph of compliance documents.
+
+Rewrite the question to be more specific and use compliance/regulatory terminology
+that would match entity names and descriptions in a compliance knowledge graph.
+
+ORIGINAL QUESTION: {question}
+
+Rules:
+- Use specific compliance terms (regulation names, control types, entity types)
+- Break compound questions into the most important sub-question
+- Keep the rewritten question concise (1-2 sentences max)
+- Do NOT change the intent of the question
+
+Respond with ONLY the rewritten question text, nothing else."""
+
+
+async def _grade_evidence_relevance(
+    question: str,
+    evidence_text: str,
+    router,
+) -> float:
+    """
+    Grade how relevant the retrieved evidence is to the question.
+    Returns a score from 0.0 (irrelevant) to 1.0 (perfectly relevant).
+
+    Uses a cheap, fast LLM call with minimal tokens.
+    """
+    try:
+        prompt = RELEVANCE_GRADING_PROMPT.format(
+            question=question,
+            evidence=evidence_text[:2000],
+        )
+        result = await router.generate_json(
+            prompt=prompt,
+            system_prompt="You are a strict relevance grader. Respond only with JSON.",
+            provider=Provider.GROQ,
+            temperature=0.0,
+        )
+        score = float(result.get("relevance_score", 0.5))
+        logger.debug(f"Evidence relevance grade: {score:.2f} — {result.get('reasoning', '')[:80]}")
+        return max(0.0, min(1.0, score))
+    except Exception as e:
+        logger.warning(f"Evidence grading failed: {e}")
+        return 0.5  # Default: assume moderate relevance
+
+
+async def _rewrite_query(question: str, router) -> str:
+    """
+    Rewrite a vague or ambiguous compliance question into a more specific form
+    that will produce better vector search results against the knowledge graph.
+    """
+    try:
+        rewritten = await router.generate(
+            prompt=QUERY_REWRITE_PROMPT.format(question=question),
+            system_prompt="You are a compliance query optimizer.",
+            provider=Provider.GROQ,
+            temperature=0.0,
+            max_tokens=256,
+        )
+        rewritten = rewritten.strip().strip('"').strip("'")
+        if rewritten and len(rewritten) > 10:
+            return rewritten
+        return question
+    except Exception as e:
+        logger.warning(f"Query rewrite failed: {e}")
+        return question
+

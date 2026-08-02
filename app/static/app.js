@@ -136,7 +136,31 @@ async function uploadFile(file) {
             body: formData,
         });
 
-        const data = await res.json();
+        if (!res.ok) {
+            const errorText = await res.text();
+            let errorDetail = `Server error ${res.status} (${res.statusText || 'Error'})`;
+            try {
+                const parsed = JSON.parse(errorText);
+                if (parsed.detail) errorDetail = parsed.detail;
+                else if (parsed.error) errorDetail = parsed.error;
+            } catch (_) {
+                if (errorText.trim()) errorDetail += `: ${errorText.substring(0, 150)}`;
+            }
+            throw new Error(errorDetail);
+        }
+
+        const rawText = await res.text();
+        if (!rawText || !rawText.trim()) {
+            throw new Error("Server returned an empty response. The backend may have timed out or crashed during processing.");
+        }
+
+        let data;
+        try {
+            data = JSON.parse(rawText);
+        } catch (jsonErr) {
+            throw new Error(`Invalid JSON response: ${rawText.substring(0, 100)}`);
+        }
+
         fill.style.width = '80%';
 
         if (data.status === 'success' || data.status === 'partial') {
@@ -208,7 +232,25 @@ async function runUploadDebateAnalysis(docId, filename) {
         });
         clearTimeout(timeoutId);
 
-        const data = await res.json();
+        if (!res.ok) {
+            const errorText = await res.text();
+            let errorDetail = `Analysis server error ${res.status}`;
+            try {
+                const parsed = JSON.parse(errorText);
+                if (parsed.detail) errorDetail = parsed.detail;
+            } catch (_) {}
+            throw new Error(errorDetail);
+        }
+
+        const rawText = await res.text();
+        let data = {};
+        if (rawText && rawText.trim()) {
+            try {
+                data = JSON.parse(rawText);
+            } catch (_) {
+                data = {};
+            }
+        }
         queryCount++;
         const sq = document.getElementById('statQueries');
         if (sq) sq.textContent = queryCount;
