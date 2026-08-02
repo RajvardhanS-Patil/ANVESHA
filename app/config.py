@@ -5,6 +5,7 @@ No hardcoded paths, no local disk persistence assumptions.
 Every config value is overridable via env vars for Render deployment.
 """
 
+import os
 from pydantic_settings import BaseSettings
 from pydantic import Field
 from typing import Optional
@@ -52,7 +53,7 @@ class Settings(BaseSettings):
     # --- OpenRouter (Fallback Provider) ---
     openrouter_api_key: str = Field(default="", description="OpenRouter API key (fallback)")
     openrouter_model: str = Field(
-        default="meta-llama/llama-3.3-70b-instruct:free",
+        default="openrouter/free",
         description="OpenRouter fallback model"
     )
 
@@ -78,7 +79,7 @@ class Settings(BaseSettings):
     port: int = Field(default=8000, description="Server port")
 
     model_config = {
-        "env_file": ".env",
+        "env_file": os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"),
         "env_file_encoding": "utf-8",
         "case_sensitive": False,
         "extra": "ignore",
