@@ -75,9 +75,8 @@ async def get_audit_report(report_id: str):
 
 @router.get("/audit/report/{report_id}/export")
 async def export_audit_report(report_id: str):
-    """Export a compliance audit report as a structured PDF document."""
+    """Export a compliance audit report as a structured Markdown document."""
     from fastapi.responses import Response
-    from fpdf import FPDF
     
     reports = get_audit_reports()
     if report_id not in reports:
@@ -88,70 +87,55 @@ async def export_audit_report(report_id: str):
     
     report = reports[report_id]
     
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_auto_page_break(auto=True, margin=15)
-    
-    # Title
-    pdf.set_font("Helvetica", "B", 16)
-    pdf.cell(0, 10, "ANVESHA Compliance Audit Report", align="C", new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(5)
-    
-    pdf.set_font("Helvetica", size=11)
-    pdf.cell(0, 8, f"Report ID: {report_id}", new_x="LMARGIN", new_y="NEXT")
-    pdf.cell(0, 8, f"Compliance Score: {report.get('compliance_score', 0)}%", new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(10)
+    md = []
+    md.append("# ANVESHA Compliance Audit Report")
+    md.append("")
+    md.append(f"**Report ID:** {report_id}")
+    md.append(f"**Compliance Score:** {report.get('compliance_score', 0)}%")
+    md.append("")
+    md.append("---")
+    md.append("")
     
     for ctrl in report.get("controls", []):
-        pdf.set_font("Helvetica", "B", 12)
-        name = ctrl.get('name', 'Unknown').encode('latin-1', 'replace').decode('latin-1')
-        pdf.cell(0, 8, f"Control: {name}", new_x="LMARGIN", new_y="NEXT")
+        name = ctrl.get('name', 'Unknown')
+        status = ctrl.get('status', 'UNKNOWN')
+        desc = ctrl.get('description', '')
+        reasoning = ctrl.get('reasoning', '')
         
-        pdf.set_font("Helvetica", "B", 10)
-        pdf.cell(0, 6, "Status:", new_x="LMARGIN", new_y="NEXT")
-        pdf.set_font("Helvetica", size=10)
-        pdf.multi_cell(0, 6, f"{ctrl.get('status', 'UNKNOWN')}", new_x="LMARGIN", new_y="NEXT")
+        md.append(f"## Control: {name}")
+        md.append(f"- **Status:** {status}")
+        md.append(f"- **Description:** {desc}")
+        md.append("")
         
-        pdf.set_font("Helvetica", "B", 10)
-        pdf.cell(0, 6, "Description:", new_x="LMARGIN", new_y="NEXT")
-        pdf.set_font("Helvetica", size=10)
-        desc = ctrl.get('description', '').encode('latin-1', 'replace').decode('latin-1')
-        pdf.multi_cell(0, 6, desc, new_x="LMARGIN", new_y="NEXT")
-        
-        pdf.set_font("Helvetica", "B", 10)
-        pdf.cell(0, 6, "Evidence Found:", new_x="LMARGIN", new_y="NEXT")
-        pdf.set_font("Helvetica", size=10)
+        md.append("### Evidence Found")
         if ctrl.get("evidence_found"):
             for ev in ctrl["evidence_found"]:
-                ev_txt = ev.encode('latin-1', 'replace').decode('latin-1')
-                pdf.multi_cell(0, 6, f"- {ev_txt}", new_x="LMARGIN", new_y="NEXT")
+                md.append(f"- {ev}")
         else:
-            pdf.multi_cell(0, 6, "- No direct mapped evidence found in the systems catalog.", new_x="LMARGIN", new_y="NEXT")
-            
-        pdf.set_font("Helvetica", "B", 10)
-        pdf.cell(0, 6, "Audit Evaluation & Rationale:", new_x="LMARGIN", new_y="NEXT")
-        pdf.set_font("Helvetica", size=10)
-        reasoning = ctrl.get('reasoning', '').encode('latin-1', 'replace').decode('latin-1')
-        pdf.multi_cell(0, 6, reasoning, new_x="LMARGIN", new_y="NEXT")
+            md.append("- No direct mapped evidence found in the systems catalog.")
+        md.append("")
         
-        pdf.set_font("Helvetica", "B", 10)
-        pdf.cell(0, 6, "Remediation Roadmap Checklist:", new_x="LMARGIN", new_y="NEXT")
-        pdf.set_font("Helvetica", size=10)
+        md.append("### Audit Evaluation & Rationale")
+        md.append(reasoning)
+        md.append("")
+        
+        md.append("### Remediation Roadmap Checklist")
         if ctrl.get("remediation"):
             for rem in ctrl["remediation"]:
-                rem_txt = rem.encode('latin-1', 'replace').decode('latin-1')
-                pdf.multi_cell(0, 6, f"- [ ] {rem_txt}", new_x="LMARGIN", new_y="NEXT")
+                md.append(f"- [ ] {rem}")
         else:
-            pdf.multi_cell(0, 6, "- [x] Control satisfied. No remediation action required.", new_x="LMARGIN", new_y="NEXT")
-            
-        pdf.ln(5)
+            md.append("- [x] Control satisfied. No remediation action required.")
         
-    pdf_bytes = bytes(pdf.output())
+        md.append("")
+        md.append("---")
+        md.append("")
+        
+    md_content = "\n".join(md)
     
     headers = {
-        "Content-Disposition": f"attachment; filename=anvesha_compliance_report_{report_id[:8]}.pdf"
+        "Content-Disposition": f"attachment; filename=anvesha_compliance_report_{report_id[:8]}.md"
     }
-    return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
+    return Response(content=md_content, media_type="text/markdown", headers=headers)
 
 
 @router.get("/audit/report/{report_id}/annotated")
