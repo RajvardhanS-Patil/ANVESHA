@@ -386,10 +386,39 @@ async function runUploadDebateAnalysis(docId, filename) {
             document.getElementById('chatMessages').appendChild(reportMsg);
             document.getElementById('chatMessages').scrollTop = 9999;
 
-            // Save report locally for compliance page
+            // Fix: Fetch the FULL report from the server (cr only has summary data)
             lastReportId = cr.report_id;
-            activeComplianceReport = cr; // Save active report to render immediately
-            saveReportToLocal(cr); // Save to history so it persists
+            try {
+                const fullReportRes = await fetch(`/api/audit/report/${cr.report_id}`);
+                if (fullReportRes.ok) {
+                    const fullReport = await fullReportRes.json();
+                    activeComplianceReport = fullReport; // Replace cache with full report
+                    saveReportToLocal(fullReport);
+                    
+                    // Fix: Update dashboard compliance score circle
+                    const dashCompScore = document.getElementById('dashComplianceScore');
+                    const dashCompCircle = document.getElementById('dashComplianceCircle');
+                    if (dashCompScore) dashCompScore.textContent = `${fullReport.compliance_score || 0}%`;
+                    if (dashCompCircle) {
+                        const pct = fullReport.compliance_score || 0;
+                        const circumference = 2 * Math.PI * 54;
+                        const offset = circumference - (pct / 100) * circumference;
+                        dashCompCircle.style.strokeDasharray = `${circumference}`;
+                        dashCompCircle.style.strokeDashoffset = `${offset}`;
+                    }
+                    
+                    // Fix: Refresh history/reports views so they show the new report
+                    if (typeof loadAuditReports === 'function') loadAuditReports();
+                } else {
+                    // Fallback: save the partial summary
+                    activeComplianceReport = null; // Force re-fetch on next compliance page visit
+                    saveReportToLocal(cr);
+                }
+            } catch(fetchErr) {
+                console.warn('Could not fetch full report:', fetchErr);
+                activeComplianceReport = null;
+                saveReportToLocal(cr);
+            }
         }
 
     } catch (e) {
@@ -1715,9 +1744,11 @@ async function loadComplianceMatrix() {
     const grid = document.getElementById('complianceControlsGrid');
     if (!grid) return;
 
-    // If we already have a report loaded, just re-render it
-    if (activeComplianceReport) {
+    // If we have a cached report, render it immediately but ALSO check server for newer
+    if (activeComplianceReport && activeComplianceReport.controls) {
         renderComplianceMatrix(activeComplianceReport);
+        // Still check server in background for a newer report
+        _refreshComplianceFromServer(grid);
         return;
     }
 
@@ -1789,6 +1820,30 @@ async function loadComplianceMatrix() {
                 <button onclick="loadComplianceMatrix()" class="investigate-btn text-white text-xs px-4 py-2 rounded-lg font-bold">Retry</button>
             </div>
         `;
+    }
+}
+
+async function _refreshComplianceFromServer(grid) {
+    try {
+        const res = await fetch('/api/audit/reports');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.reports && data.reports.length > 0) {
+            const latestId = data.reports[0].report_id;
+            // Only re-fetch if the latest server report is different from what we have cached
+            if (!activeComplianceReport || activeComplianceReport.report_id !== latestId) {
+                const reportRes = await fetch(`/api/audit/report/${latestId}`);
+                if (reportRes.ok) {
+                    const reportData = await reportRes.json();
+                    activeComplianceReport = reportData;
+                    saveReportToLocal(reportData);
+                    renderComplianceMatrix(reportData);
+                }
+            }
+        }
+    } catch(e) {
+        // Silent background refresh — don't show errors
+        console.warn('Background compliance refresh failed:', e);
     }
 }
 

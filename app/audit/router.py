@@ -39,25 +39,28 @@ async def execute_audit():
 async def list_audit_reports():
     """List all stored compliance audit reports."""
     reports = get_audit_reports()
-    report_id = "410daca4-270c-4be1-b3d7-c5df23bd6d3a"
-    target_report = reports.get(report_id)
     
-    if not target_report:
+    if not reports:
         return {"total_reports": 0, "reports": []}
-        
+    
+    report_list = []
+    for report_id, report_data in reports.items():
+        report_list.append({
+            "report_id": report_id,
+            "compliance_score": report_data.get("compliance_score", 0),
+            "total_controls": report_data.get("summary", {}).get("total_controls", 0),
+            "met_controls": report_data.get("summary", {}).get("met_controls", 0),
+            "partial_controls": report_data.get("summary", {}).get("partial_controls", 0),
+            "gap_controls": report_data.get("summary", {}).get("gap_controls", 0),
+            "generated_at": report_data.get("generated_at", ""),
+        })
+    
+    # Sort newest first
+    report_list.sort(key=lambda r: r.get("generated_at", ""), reverse=True)
+    
     return {
-        "total_reports": 1,
-        "reports": [
-            {
-                "report_id": report_id,
-                "compliance_score": target_report.get("compliance_score", 0),
-                "total_controls": target_report.get("summary", {}).get("total_controls", 0),
-                "met_controls": target_report.get("summary", {}).get("met_controls", 0),
-                "partial_controls": target_report.get("summary", {}).get("partial_controls", 0),
-                "gap_controls": target_report.get("summary", {}).get("gap_controls", 0),
-                "generated_at": target_report.get("generated_at", ""),
-            }
-        ]
+        "total_reports": len(report_list),
+        "reports": report_list
     }
 
 
