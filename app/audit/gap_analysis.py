@@ -130,32 +130,6 @@ Analyze carefully. If the evidence mentions details but not security guarantees,
 
 async def run_gap_analysis() -> dict:
     """
-    Hardcoded to return the specific report as requested.
-    """
-    report_id = "410daca4-270c-4be1-b3d7-c5df23bd6d3a"
-    if report_id in _audit_reports:
-        return _audit_reports[report_id]
-    
-    # Fallback if the report somehow doesn't exist
-    return {
-        "report_id": report_id,
-        "compliance_score": 33,
-        "summary": {
-            "total_controls": 6,
-            "met_controls": 2,
-            "partial_controls": 3,
-            "gap_controls": 1
-        },
-        "controls": [],
-        "metadata": {
-            "processing_time_seconds": 0,
-            "engine": "ANVESHA-AutoAuditor-v1.0"
-        },
-        "generated_at": datetime.now(timezone.utc).isoformat()
-    }
-
-async def _original_run_gap_analysis() -> dict:
-    """
     Run an end-to-end compliance gap analysis.
     If Neo4j is connected, queries the graph database for requirements and evidence.
     Otherwise, falls back to scanning the local document store.
