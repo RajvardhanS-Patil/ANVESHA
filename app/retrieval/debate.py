@@ -77,6 +77,7 @@ async def run_compliance_debate(
     top_k_seeds: Optional[int] = None,
     max_context_nodes: Optional[int] = None,
     as_of: Optional[str] = None,
+    doc_id: Optional[str] = None,
 ) -> dict:
     """
     Run the multi-agent debate loop:
@@ -136,6 +137,26 @@ async def run_compliance_debate(
             evidence_subgraph = {
                 "nodes": filtered_nodes,
                 "edges": filtered_edges
+            }
+            
+        # Isolate analysis to the requested doc_id
+        if doc_id:
+            # We want to keep Requirements/Regulations, but filter out Evidence/Policy nodes not from doc_id
+            isolated_nodes = []
+            for n in evidence_subgraph.get("nodes", []):
+                if n.get("entity_type") in ["Requirement", "Regulation", "Control"]:
+                    isolated_nodes.append(n)
+                elif n.get("source_doc_id") == doc_id:
+                    isolated_nodes.append(n)
+                    
+            isolated_node_ids = {n["id"] for n in isolated_nodes}
+            isolated_edges = [
+                e for e in evidence_subgraph.get("edges", [])
+                if e.get("source") in isolated_node_ids and e.get("target") in isolated_node_ids
+            ]
+            evidence_subgraph = {
+                "nodes": isolated_nodes,
+                "edges": isolated_edges
             }
 
         evidence_text = _serialize_evidence(seed_entities, evidence_subgraph)

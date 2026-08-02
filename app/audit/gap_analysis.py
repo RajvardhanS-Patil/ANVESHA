@@ -127,8 +127,7 @@ COMPANY COMPLIANCE CONTEXT (Evidence, Policies, and Systems):
 Analyze carefully. If the evidence mentions details but not security guarantees, rate it PARTIAL. If nothing matches, rate it GAP.
 """
 
-
-async def run_gap_analysis() -> dict:
+async def run_gap_analysis(doc_id: Optional[str] = None) -> dict:
     """
     Run an end-to-end compliance gap analysis.
     If Neo4j is connected, queries the graph database for requirements and evidence.
@@ -187,22 +186,33 @@ async def run_gap_analysis() -> dict:
         if neo4j_client.is_connected():
             try:
                 # Find connected nodes in graph
-                query = """
+                query_base = """
                 MATCH (req:Entity) WHERE req.id = $req_id
                 OPTIONAL MATCH path = (req)-[r:IMPLEMENTED_BY|EVIDENCED_BY|APPLIES_TO|RESPONSIBLE_FOR|RELATED_TO*1..2]-(evidence:Entity)
                 WHERE evidence.entity_type IN ['Policy', 'System', 'Evidence', 'Asset']
+                """
+                if doc_id:
+                    query_base += " AND evidence.source_doc_id = $doc_id\n"
+                    
+                query_base += """
                 RETURN DISTINCT evidence {
                     .id, .name, .entity_type, .description, .exact_span, .source_doc_id, .source_location
                 } AS ev
                 LIMIT 10
                 """
-                rels = await neo4j_client.execute_read(query, {"req_id": req["id"]})
+                rels = await neo4j_client.execute_read(query_base, {"req_id": req["id"], "doc_id": doc_id})
                 
                 # Check for vector fallback if no direct path
                 if not rels or not rels[0] or not rels[0].get("ev"):
                     # Use vector search to retrieve similar policy/evidence chunks
                     req_embedding = await llm_router.embed(f"{req['name']} {req['description']}")
+                    # If doc_id is provided, vector search filtering would be needed here, 
+                    # but for now we rely on the graph query filtering or fallback search filtering.
                     vector_matches = await neo4j_client.vector_search(req_embedding, top_k=5)
+                    
+                    if doc_id:
+                        vector_matches = [m for m in vector_matches if m.get("entity", {}).get("source_doc_id") == doc_id]
+                        
                     evidence_context = _format_vector_matches_for_audit(vector_matches)
                 else:
                     evidence_context = _format_graph_evidence_for_audit(rels)
@@ -211,7 +221,7 @@ async def run_gap_analysis() -> dict:
 
         # 2b. In-memory chunk store fallback context
         if not evidence_context.strip():
-            evidence_context = await _fallback_text_retrieval_for_audit(req["name"] + " " + req["description"])
+            evidence_context = await _fallback_text_retrieval_for_audit(req["name"] + " " + req["description"], doc_id)
 
         # 2c. Run LLM audit comparison
         try:
@@ -361,7 +371,7 @@ def _format_vector_matches_for_audit(matches: list) -> str:
     return "\n\n".join(parts) if parts else "No semantic evidence found via vector search."
 
 
-async def _fallback_text_retrieval_for_audit(keywords: str) -> str:
+async def _fallback_text_retrieval_for_audit(keywords: str, doc_id: Optional[str] = None) -> str:
     """Fallback: retrieve text chunks from chunk store when offline/empty graph."""
     from app.ingestion.router import get_chunk_store
     chunk_store = get_chunk_store()
@@ -373,6 +383,9 @@ async def _fallback_text_retrieval_for_audit(keywords: str) -> str:
     scored_chunks = []
 
     for chunk_id, chunk in chunk_store.items():
+        if doc_id and chunk.get("doc_id") != doc_id:
+            continue
+            
         text = chunk.get("raw_text", "").lower()
         if not text:
             continue

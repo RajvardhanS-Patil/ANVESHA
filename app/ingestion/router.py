@@ -439,6 +439,7 @@ async def analyze_document(doc_id: str):
             question=debate_question,
             k_hops=2,
             top_k_seeds=8,
+            doc_id=doc_id,
         )
     except Exception as e:
         logger.error(f"Debate failed for {doc_id}: {e}")
@@ -455,7 +456,7 @@ async def analyze_document(doc_id: str):
     # Run the gap analysis to get a structured compliance report
     try:
         from app.audit.gap_analysis import run_gap_analysis, get_audit_reports
-        audit_report = await run_gap_analysis()
+        audit_report = await run_gap_analysis(doc_id=doc_id)
         report_id = audit_report["report_id"]
     except Exception as e:
         logger.error(f"Gap analysis failed for {doc_id}: {e}")
