@@ -1152,20 +1152,29 @@ async function loadAuditReports() {
             
             const historyList = document.getElementById('auditHistoryList');
             if (historyList) {
-                historyList.innerHTML = allReports.map(r => {
+                historyList.innerHTML = allReports.map((r, idx) => {
                     const dateObj = new Date(r.generated_at);
                     const formattedDate = isNaN(dateObj) ? r.generated_at : dateObj.toLocaleString(undefined, {
                         month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
                     });
                     const scoreColor = r.compliance_score >= 80 ? 'text-secondary' : (r.compliance_score >= 50 ? 'text-tertiary' : 'text-error');
-                    
+                    const scoreBg = r.compliance_score >= 80 ? 'rgba(78,222,163,0.1)' : (r.compliance_score >= 50 ? 'rgba(206,189,255,0.1)' : 'rgba(239,68,68,0.1)');
+                    const trend = idx < allReports.length - 1
+                        ? (r.compliance_score > allReports[idx+1].compliance_score ? '📈' : r.compliance_score < allReports[idx+1].compliance_score ? '📉' : '➡️')
+                        : '';
+                    const docName = r.doc || r.doc_filename || r.report_id.substring(0,12)+'...';
                     return `
-                        <div onclick="loadSpecificAuditReport('${r.report_id}')" class="flex justify-between items-center p-2 rounded bg-surface-container-low border border-white/5 cursor-pointer hover:bg-white/5 transition-colors">
-                            <div>
-                                <div class="text-[10px] text-on-surface font-medium truncate w-32" title="${r.report_id}">${r.report_id.substring(0,8)}...</div>
-                                <div class="text-[9px] text-on-surface-variant">${formattedDate}</div>
+                        <div onclick="loadSpecificAuditReport('${r.report_id}')" class="p-2.5 rounded-lg border border-white/5 cursor-pointer hover:bg-white/5 transition-colors" style="margin:4px 0;background:rgba(255,255,255,0.02)">
+                            <div style="display:flex;justify-content:space-between;align-items:center">
+                                <div style="flex:1;min-width:0">
+                                    <div class="text-[10px] text-on-surface font-medium truncate" title="${docName}" style="max-width:130px">${docName}</div>
+                                    <div class="text-[9px] text-on-surface-variant">${formattedDate}</div>
+                                </div>
+                                <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">
+                                    ${trend ? `<span style="font-size:0.7rem">${trend}</span>` : ''}
+                                    <div class="text-[12px] font-bold ${scoreColor}" style="background:${scoreBg};padding:2px 7px;border-radius:8px">${r.compliance_score}%</div>
+                                </div>
                             </div>
-                            <div class="text-[11px] font-bold ${scoreColor}">${r.compliance_score}%</div>
                         </div>
                     `;
                 }).join('');
@@ -2693,8 +2702,337 @@ async function sendComplianceConsultMessage() {
 
 
 
-// --- DEMO MODE MOCK LOGIC ---
+// ============================================================
+// ============================================================
+// ANVESHA — COMPREHENSIVE DEMO MODE (Apex_Security_Policy.pdf)
+// Only activated when window.isDemoMode = true
+// ============================================================
+
 window.isDemoMode = false;
+
+// ─── Full hardcoded Apex Security Policy demo data ───────────
+const APEX_DEMO_REPORT = {
+    report_id: "demo-report-apex-2024",
+    generated_at: new Date().toISOString(),
+    compliance_score: 52,
+    doc_filename: "Apex_Security_Policy.pdf",
+    summary: {
+        total_controls: 12,
+        met_controls: 4,
+        partial_controls: 3,
+        gap_controls: 5
+    },
+    hallucination_analysis: {
+        total_claims_verified: 47,
+        confirmed_true: 29,
+        hallucinated: 8,
+        controversial: 10,
+        hallucination_rate_pct: 17,
+        hallucination_risk: "HIGH"
+    },
+    controls: [
+        {
+            requirement_id: "GDPR-ART-32",
+            framework: "GDPR",
+            category: "Data Security",
+            name: "Article 32 — Security of Processing (Encryption)",
+            description: "Implementation of appropriate technical measures including encryption of personal data and ongoing confidentiality.",
+            status: "GAP",
+            highlight_color: "red",
+            highlight_type: "critical_gap",
+            evidence_found: [
+                "§1.0: 'Apex Payments guarantees that 100% of customer data is encrypted in transit and at rest using AES-256'",
+                "§3.0: 'The legacy transactions_db PostgreSQL database currently stores user credit card numbers and passwords in plain text due to reporting tool compatibility requirements'"
+            ],
+            reasoning: "CRITICAL CONTRADICTION DETECTED. Section 1.0 asserts 100% AES-256 encryption as a blanket guarantee. However, Section 3.0 explicitly admits that the legacy 'transactions_db' PostgreSQL database stores credit card Primary Account Numbers (PANs) and user passwords in plaintext. This constitutes a direct, documented violation of GDPR Article 32's requirement for encryption of personal data. The policy document itself has captured this contradiction in writing, which is a serious audit finding — the document is both making a compliance claim AND admitting to a violation of that same claim.",
+            hallucination_flags: [
+                { claim: "100% of customer data is encrypted in transit and at rest", verdict: "FALSE", color: "red", reason: "Contradicted by §3.0 admission of plaintext transactions_db storage. This is a documented lie within the same policy document.", page: "Section 1.0" }
+            ],
+            remediation: [
+                "Immediately encrypt the transactions_db PostgreSQL database using pgcrypto extension or migrate to encrypted storage",
+                "Replace legacy reporting tools that require plaintext access with encryption-aware alternatives",
+                "Conduct emergency DPA (Data Protection Assessment) and notify relevant supervisory authority if breach has occurred",
+                "Implement column-level encryption for credit card PAN fields: ALTER TABLE payments ADD COLUMN pan_encrypted BYTEA",
+                "Engage PCI-DSS QSA for forensic review of all systems accessing the plaintext database",
+                "Remove the false '100%' guarantee language from Section 1.0 until full compliance is achieved"
+            ]
+        },
+        {
+            requirement_id: "ISO-A-8-24",
+            framework: "ISO 27001",
+            category: "Cryptography",
+            name: "Control A.8.24 — Use of Cryptography",
+            description: "Rules for effective use of cryptography including key management to protect confidentiality, authenticity, and integrity.",
+            status: "PARTIAL",
+            highlight_color: "yellow",
+            highlight_type: "controversial",
+            evidence_found: [
+                "§1.0: 'AES-256 encryption standard mandated for all production databases'",
+                "§4.0: 'Cryptographic key rotation is performed annually'",
+                "§3.0: Legacy exception for transactions_db explicitly documented"
+            ],
+            reasoning: "The organization demonstrates a mature intent to implement AES-256 cryptography. Key rotation is defined (annually). However, the annual rotation cadence is below NIST SP 800-57 recommendations for high-sensitivity data (90-day rotation for Level 3 data). The legacy plaintext exception constitutes a partial failure of this control.",
+            hallucination_flags: [
+                { claim: "All cryptographic keys are stored in HSM (Hardware Security Module)", verdict: "UNVERIFIABLE", color: "orange", reason: "HSM storage is mentioned in Section 4.0 but no vendor, model, or audit log is referenced to substantiate this claim.", page: "Section 4.0" }
+            ],
+            remediation: [
+                "Reduce cryptographic key rotation from annual to quarterly for PAN data",
+                "Provide HSM vendor attestation and FIPS 140-2 Level 3 certification documentation",
+                "Establish key escrow and recovery procedures per NIST SP 800-57"
+            ]
+        },
+        {
+            requirement_id: "ISO-A-8-20",
+            framework: "ISO 27001",
+            category: "Network Security",
+            name: "Control A.8.20 — Network Security Controls",
+            description: "Networks should be secured, managed, and controlled to protect information in systems.",
+            status: "MET",
+            highlight_color: "green",
+            highlight_type: "verified_correct",
+            evidence_found: [
+                "§2.0: 'All network perimeters are protected by next-generation firewalls with IDS/IPS enabled'",
+                "§2.1: 'Network segmentation separates cardholder data environment (CDE) from corporate network'",
+                "§2.2: 'Quarterly penetration testing conducted by certified third party (Rapid7 Metasploit Pro)'"
+            ],
+            reasoning: "Network security controls are well-documented and appear comprehensive. Firewall policies are defined with IDS/IPS coverage. Network segmentation between CDE and corporate environment is explicitly stated, which satisfies PCI-DSS Requirement 1 and ISO 27001 A.8.20. Quarterly pen-testing exceeds the minimum annual requirement.",
+            hallucination_flags: [],
+            remediation: []
+        },
+        {
+            requirement_id: "GDPR-ART-33",
+            framework: "GDPR",
+            category: "Incident Response",
+            name: "Article 33 — Data Breach Notification (72-hour rule)",
+            description: "Personal data breach must be notified to supervisory authority within 72 hours of awareness.",
+            status: "PARTIAL",
+            highlight_color: "yellow",
+            highlight_type: "controversial",
+            evidence_found: [
+                "§5.0: 'All security incidents must be reported to CISO within 4 hours of detection'",
+                "§5.1: 'Data breach notifications to authorities handled by Legal team within 3 business days'",
+                "§5.2: 'Incident Commander assigns severity within 1 hour using the DREAD scoring matrix'"
+            ],
+            reasoning: "CONTROVERSIAL FINDING: Section 5.1 states breach notifications are handled 'within 3 business days'. If a breach is detected on a Friday evening, 3 business days could extend to Wednesday — exceeding the 72-hour regulatory deadline. This ambiguity represents a real compliance risk.",
+            hallucination_flags: [
+                { claim: "All incidents are notified to DPA within 72 hours as required by GDPR", verdict: "CONTROVERSIAL", color: "orange", reason: "Section 5.1 says '3 business days', not 72 calendar hours. These are different measurements and business-day counting could violate GDPR Art.33 on weekends.", page: "Section 5.1" }
+            ],
+            remediation: [
+                "Replace '3 business days' with '72 calendar hours from discovery' in Section 5.1",
+                "Implement 24/7 on-call Legal/DPO rotation for weekend breach events",
+                "Add automated breach notification drafting tool triggered by Incident Commander severity assessment",
+                "Run tabletop exercise simulating a Friday-evening breach to validate 72-hour compliance"
+            ]
+        },
+        {
+            requirement_id: "SOC2-CC6",
+            framework: "SOC 2 Type II",
+            category: "Access Control",
+            name: "CC6.1 — Logical and Physical Access Controls",
+            description: "Access to information assets is restricted to authorized personnel through logical access controls.",
+            status: "MET",
+            highlight_color: "green",
+            highlight_type: "verified_correct",
+            evidence_found: [
+                "§2.0: 'All administrative access requires hardware MFA tokens (Yubikey 5 series)'",
+                "§2.3: 'Role-Based Access Control (RBAC) implemented across all systems'",
+                "§2.4: 'Access rights reviewed and recertified every 30 days by system owners'"
+            ],
+            reasoning: "Access controls are mature and well-documented. Hardware MFA (Yubikey) exceeds SMS/TOTP requirements. 30-day RBAC review cycles are aggressive and demonstrate strong hygiene. This control is satisfied for SOC 2 CC6.1 purposes.",
+            hallucination_flags: [],
+            remediation: []
+        },
+        {
+            requirement_id: "PCI-DSS-REQ-3",
+            framework: "PCI-DSS v4.0",
+            category: "Stored Data Protection",
+            name: "Requirement 3 — Protect Stored Account Data",
+            description: "Stored cardholder data must be protected. Primary Account Numbers (PANs) must be rendered unreadable.",
+            status: "GAP",
+            highlight_color: "red",
+            highlight_type: "critical_gap",
+            evidence_found: [
+                "§3.0: 'transactions_db stores credit card numbers in plain text' (direct quote)",
+                "§1.0: 'AES-256 encryption mandated for all production databases' (contradicting claim)"
+            ],
+            reasoning: "CRITICAL VIOLATION. PCI-DSS Requirement 3.4 explicitly mandates that Primary Account Numbers (PANs) be rendered unreadable anywhere they are stored. Section 3.0 explicitly admits plaintext PAN storage in transactions_db. This is a Level 1 PCI-DSS violation.",
+            hallucination_flags: [
+                { claim: "We maintain PCI-DSS Level 1 compliance certification", verdict: "FALSE", color: "red", reason: "PCI-DSS Level 1 certification is impossible while PANs are stored in plaintext per §3.0. This claim is a direct hallucination/misrepresentation.", page: "Executive Summary" }
+            ],
+            remediation: [
+                "IMMEDIATE ACTION: Engage PCI-DSS QSA for emergency gap assessment",
+                "Stop all new plaintext PAN writes to transactions_db within 48 hours",
+                "Implement tokenization using a vault solution (HashiCorp Vault, AWS Secrets Manager)",
+                "Notify card brands (Visa, Mastercard) of the exposure if discovered",
+                "Update the Executive Summary's PCI-DSS compliance claims to 'In Remediation'"
+            ]
+        },
+        {
+            requirement_id: "GDPR-ART-5-1",
+            framework: "GDPR",
+            category: "Data Minimization",
+            name: "Article 5(1)(c) — Data Minimization",
+            description: "Personal data collected must be adequate, relevant and limited to what is necessary for the purpose.",
+            status: "GAP",
+            highlight_color: "red",
+            highlight_type: "gap",
+            evidence_found: [
+                "§7.0: 'We collect full SSN, date of birth, home address, browsing history, and device fingerprints from all registered users'",
+                "§7.1: 'Data is retained for 10 years for fraud analysis purposes'"
+            ],
+            reasoning: "The data collection scope described in Section 7.0 is extremely broad. Collecting browsing history and device fingerprints for a payments platform exceeds what is strictly necessary for transaction processing. GDPR Art. 5(1)(c) requires data to be 'limited to what is necessary' — this policy fails that test.",
+            hallucination_flags: [
+                { claim: "All data collected is strictly necessary for regulatory compliance", verdict: "FALSE", color: "red", reason: "Browsing history and device fingerprints are not required by any cited regulation.", page: "Section 7.0" }
+            ],
+            remediation: [
+                "Conduct a Data Necessity Review for each of the 7 categories collected in §7.0",
+                "Remove browsing history collection or obtain explicit consent with opt-out mechanism",
+                "Reduce data retention from 10 years to a tiered model: 6 months operational, 7 years regulatory",
+                "Implement automated data lifecycle management with deletion certificates"
+            ]
+        },
+        {
+            requirement_id: "ISO-A-5-36",
+            framework: "ISO 27001",
+            category: "Compliance Review",
+            name: "Control A.5.36 — Compliance with Information Security Policies",
+            description: "Regular review of systems and processes for compliance with information security policies.",
+            status: "PARTIAL",
+            highlight_color: "yellow",
+            highlight_type: "partial",
+            evidence_found: [
+                "§6.0: 'Annual internal compliance reviews conducted by CISO office'",
+                "§6.1: 'Third-party audits conducted every 2 years'",
+                "§6.2: 'Automated vulnerability scanning using Qualys conducted monthly'"
+            ],
+            reasoning: "Compliance review processes exist but have gaps. Annual internal reviews are the minimum acceptable cadence. Given the identified critical gaps, the review frequency appears inadequate. The 2-year external audit cycle means critical violations could go undetected for extended periods.",
+            hallucination_flags: [],
+            remediation: [
+                "Increase internal compliance review frequency to semi-annual for high-risk control domains",
+                "Implement continuous compliance monitoring using a GRC tool",
+                "Reduce third-party audit cycle to annual"
+            ]
+        },
+        {
+            requirement_id: "SOC2-A1",
+            framework: "SOC 2 Type II",
+            category: "Availability",
+            name: "A1.1 — System Availability and Performance",
+            description: "The system is available for operation and use as committed or agreed.",
+            status: "MET",
+            highlight_color: "green",
+            highlight_type: "verified_correct",
+            evidence_found: [
+                "§8.0: '99.95% SLA guaranteed with automated failover to DR site within 15 minutes'",
+                "§8.1: 'Load balancing across 3 availability zones with auto-scaling'",
+                "§8.2: 'Monthly DR drills conducted and documented'"
+            ],
+            reasoning: "Availability controls are mature. The 99.95% SLA, multi-AZ architecture, and monthly DR drills all demonstrate strong operational resilience. This control is satisfied.",
+            hallucination_flags: [],
+            remediation: []
+        },
+        {
+            requirement_id: "PCI-DSS-REQ-10",
+            framework: "PCI-DSS v4.0",
+            category: "Logging & Monitoring",
+            name: "Requirement 10 — Log and Monitor All Access",
+            description: "All access to system components and cardholder data must be logged and monitored.",
+            status: "MET",
+            highlight_color: "green",
+            highlight_type: "verified_correct",
+            evidence_found: [
+                "§9.0: 'Centralized SIEM (Splunk Enterprise) ingesting 500GB/day of authentication and transaction logs'",
+                "§9.1: 'Log retention: 1 year hot, 5 years cold storage (AWS S3 Glacier)'",
+                "§9.2: 'Real-time alerting for anomalous login patterns using ML-based behavioral analytics'"
+            ],
+            reasoning: "Logging and monitoring infrastructure is robust. Splunk SIEM with 1-year hot retention meets PCI-DSS Req 10.7. ML behavioral analytics exceeds baseline requirements. This control is satisfied.",
+            hallucination_flags: [],
+            remediation: []
+        },
+        {
+            requirement_id: "GDPR-ART-28",
+            framework: "GDPR",
+            category: "Third Party",
+            name: "Article 28 — Processor Due Diligence",
+            description: "Controller must use only processors providing sufficient guarantees on technical/organizational measures.",
+            status: "GAP",
+            highlight_color: "red",
+            highlight_type: "gap",
+            evidence_found: [
+                "§10.0: 'We use 47 third-party service providers and cloud vendors'",
+                "§10.1: 'Data Processing Agreements (DPAs) signed with major cloud providers (AWS, Google Cloud)'",
+                "§10.2: 'Vendor security assessments conducted at onboarding only'"
+            ],
+            reasoning: "GAP IDENTIFIED: While DPAs exist with major cloud providers, Section 10.2 admits that 47 vendors are only assessed at onboarding. There is no evidence of periodic re-assessment.",
+            hallucination_flags: [
+                { claim: "All 47 vendors are annually re-assessed for GDPR compliance", verdict: "FALSE", color: "red", reason: "Section 10.2 explicitly states assessments are conducted 'at onboarding only'. Annual re-assessment is not mentioned.", page: "Section 10.2" }
+            ],
+            remediation: [
+                "Implement annual vendor security re-assessment program for all 47 processors",
+                "Create a Vendor Risk Register with quarterly review cadence for Tier 1 processors",
+                "Automate DPA renewal and compliance attestation collection",
+                "Establish contractual right-to-audit clauses in all DPAs"
+            ]
+        },
+        {
+            requirement_id: "ISO-A-6-8",
+            framework: "ISO 27001",
+            category: "Vulnerability Management",
+            name: "Control A.6.8 — Information Security Event Reporting",
+            description: "Mechanisms for enabling staff to report information security events and weaknesses.",
+            status: "GAP",
+            highlight_color: "red",
+            highlight_type: "gap",
+            evidence_found: [
+                "§11.0: 'Employees may report security concerns to their direct manager'",
+                "§11.1: 'No anonymous reporting channel is available'"
+            ],
+            reasoning: "SIGNIFICANT GAP: Section 11.1 explicitly admits there is no anonymous reporting channel. ISO 27001 A.6.8 and the EU Whistleblower Directive (2019/1937, applicable to organizations >50 employees) require anonymous reporting mechanisms.",
+            hallucination_flags: [
+                { claim: "We provide multiple secure channels for employees to report security concerns", verdict: "FALSE", color: "red", reason: "Section 11.1 directly states 'No anonymous reporting channel is available'. This contradicts any claim of multiple channels.", page: "Section 11.0-11.1" }
+            ],
+            remediation: [
+                "Implement an anonymous whistleblower/security reporting platform",
+                "Communicate the reporting channel to all employees via mandatory security awareness training",
+                "Define SLA for investigation and response to reported events",
+                "Ensure non-retaliation policy is clearly documented and endorsed by senior management"
+            ]
+        }
+    ]
+};
+
+const APEX_DEMO_HISTORY = [
+    {
+        report_id: "demo-report-apex-2024",
+        compliance_score: 52,
+        total_controls: 12,
+        met_controls: 4,
+        partial_controls: 3,
+        gap_controls: 5,
+        generated_at: new Date().toISOString(),
+        doc: "Apex_Security_Policy.pdf"
+    },
+    {
+        report_id: "demo-report-apex-q3",
+        compliance_score: 38,
+        total_controls: 12,
+        met_controls: 2,
+        partial_controls: 2,
+        gap_controls: 8,
+        generated_at: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
+        doc: "Apex_Security_Policy_Q3_Draft.pdf"
+    },
+    {
+        report_id: "demo-report-apex-q2",
+        compliance_score: 25,
+        total_controls: 10,
+        met_controls: 1,
+        partial_controls: 2,
+        gap_controls: 7,
+        generated_at: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString(),
+        doc: "Apex_Interim_Policy_v1.pdf"
+    }
+];
 
 function toggleDemoMode() {
     window.isDemoMode = true;
@@ -2703,177 +3041,662 @@ function toggleDemoMode() {
         btn.classList.add('bg-primary/20', 'border-primary');
         btn.innerHTML = `<span class="material-symbols-outlined text-[14px]">auto_awesome</span> Demo Active`;
     }
-    showToast('Demo Mode Activated! Starting automated tour...', 'info');
+
+    // Seed localStorage with demo history
+    localStorage.setItem('anvesha_reports_history', JSON.stringify(APEX_DEMO_HISTORY));
+    APEX_DEMO_HISTORY.forEach(r => {
+        const stored = r.report_id === 'demo-report-apex-2024' ? APEX_DEMO_REPORT : {
+            ...APEX_DEMO_REPORT,
+            report_id: r.report_id,
+            compliance_score: r.compliance_score,
+            generated_at: r.generated_at,
+            summary: { total_controls: r.total_controls, met_controls: r.met_controls, partial_controls: r.partial_controls, gap_controls: r.gap_controls }
+        };
+        localStorage.setItem(`anvesha_full_report_${r.report_id}`, JSON.stringify(stored));
+    });
+
+    showToast('🔬 Demo Mode — Loading Apex Security Policy Analysis...', 'info');
     runAutomatedDemo();
 }
 
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
 async function runAutomatedDemo() {
-    // 1. Switch to Dashboard
     switchMainView('dashboard');
-    
-    // 2. Simulate Upload
-    const fakeFile = new File([''], 'Apex_Security_Policy.pdf', {type: 'application/pdf'});
-    await mockUploadFile(fakeFile);
-
-    // 3. Wait a bit, then switch to debate mode and ask question
-    setTimeout(async () => {
-        focusDebateMode();
-        document.getElementById('chatInput').value = "Does Apex Payments encrypt all data at rest?";
-        await mockSendMessage();
-    }, 2000);
-
-    // 4. Run Compliance Audit
-    setTimeout(async () => {
-        switchMainView('compliance');
-        await mockRunComplianceAudit();
-    }, 12000); // 12 seconds later to give time to read debate
+    await sleep(500);
+    await mockUploadFile();
 }
 
 async function mockUploadFile(file) {
-    const uploadText = document.getElementById('uploadText');
-    const uploadSpinner = document.getElementById('uploadSpinner');
-    if(uploadText) uploadText.innerText = 'Parsing Apex_Security_Policy.pdf...';
-    if(uploadSpinner) uploadSpinner.style.display = 'block';
+    const progress = document.getElementById('uploadProgress');
+    const statusEl = document.getElementById('uploadStatus');
+    const fill = document.getElementById('progressFill');
+    const welcome = document.getElementById('welcomeScreen');
 
-    return new Promise(resolve => {
-        setTimeout(() => {
-            if(uploadText) uploadText.innerText = 'Drop files here or click to upload';
-            if(uploadSpinner) uploadSpinner.style.display = 'none';
-            showToast('Document ingested and knowledge graph updated.', 'success');
-            
-            // Add fake doc to UI
-            const docList = document.getElementById('recentDocsList');
-            if(docList) {
-                const div = document.createElement('div');
-                div.className = 'doc-item';
-                div.innerHTML = `<span class="material-symbols-outlined text-red-400">picture_as_pdf</span>
-                                 <span class="truncate">Apex_Security_Policy.pdf</span>
-                                 <span class="ml-auto text-[9px] text-on-surface-variant">Just now</span>`;
-                docList.prepend(div);
-            }
-            if (window.renderGraph) {
-                renderGraph([
-                    {id: '1', name: 'Apex Payments', type: 'Policy'},
-                    {id: '2', name: 'transactions_db', type: 'System'},
-                    {id: '3', name: 'AES-256', type: 'Control'},
-                    {id: '4', name: 'MFA', type: 'Control'},
-                    {id: '5', name: 'Plaintext Exposure', type: 'Evidence'}
-                ], [
-                    {source: '1', target: '2', type: 'GOVERNS'},
-                    {source: '1', target: '3', type: 'REQUIRES'},
-                    {source: '1', target: '4', type: 'REQUIRES'},
-                    {source: '2', target: '5', type: 'HAS_EVIDENCE'},
-                    {source: '5', target: '3', type: 'VIOLATES'}
-                ]);
-            }
-            resolve();
-        }, 3000);
-    });
+    if (welcome) welcome.style.display = 'none';
+    if (progress) progress.style.display = 'block';
+    if (statusEl) statusEl.textContent = 'Uploading Apex_Security_Policy.pdf...';
+    if (fill) fill.style.width = '5%';
+    if (window.webNetworkExcite) window.webNetworkExcite(1.5);
+    showToast('📤 Uploading Apex_Security_Policy.pdf...', 'info');
+
+    const stages = [
+        { pct: 15, label: 'File accepted — queued for processing...', delay: 600 },
+        { pct: 35, label: 'Parsing document & extracting text...', delay: 1000 },
+        { pct: 55, label: 'Extracting entities & building knowledge graph...', delay: 1200 },
+        { pct: 72, label: 'Identifying compliance requirements & references...', delay: 900 },
+        { pct: 88, label: 'Writing 34 entities to Neo4j Knowledge Graph...', delay: 700 },
+        { pct: 100, label: '✓ 18 chunks extracted, 34 entities — running compliance debate...', delay: 500 }
+    ];
+
+    for (const s of stages) {
+        await sleep(s.delay);
+        if (fill) fill.style.width = `${s.pct}%`;
+        if (statusEl) statusEl.textContent = s.label;
+    }
+
+    showToast('✅ Apex_Security_Policy.pdf ingested — 18 chunks, 34 entities', 'success');
+
+    const countEl = document.getElementById('docCount');
+    if (countEl) countEl.textContent = '1';
+
+    const docList = document.getElementById('recentDocsList');
+    if (docList) {
+        const div = document.createElement('div');
+        div.className = 'doc-item';
+        div.innerHTML = `
+            <span class="material-symbols-outlined" style="color:#ef4444">picture_as_pdf</span>
+            <span class="truncate text-xs">Apex_Security_Policy.pdf</span>
+            <span class="ml-auto text-[9px] text-on-surface-variant">Just now</span>`;
+        docList.prepend(div);
+    }
+
+    if (window.renderGraph) {
+        renderGraph([
+            {id:'p1', name:'Apex Security Policy', type:'Policy'},
+            {id:'s1', name:'transactions_db (PostgreSQL)', type:'System'},
+            {id:'s2', name:'SIEM (Splunk)', type:'System'},
+            {id:'c1', name:'AES-256 Encryption', type:'Control'},
+            {id:'c2', name:'MFA (Yubikey)', type:'Control'},
+            {id:'c3', name:'RBAC', type:'Control'},
+            {id:'c4', name:'IDS/IPS Firewall', type:'Control'},
+            {id:'e1', name:'Plaintext PAN Storage', type:'Evidence'},
+            {id:'e2', name:'No Anonymous Reporting', type:'Evidence'},
+            {id:'r1', name:'GDPR Art.32', type:'Regulation'},
+            {id:'r2', name:'PCI-DSS Req.3', type:'Regulation'},
+            {id:'r3', name:'ISO 27001 A.8.20', type:'Regulation'}
+        ], [
+            {source:'p1', target:'c1', type:'REQUIRES'},
+            {source:'p1', target:'c2', type:'REQUIRES'},
+            {source:'p1', target:'c3', type:'REQUIRES'},
+            {source:'p1', target:'c4', type:'REQUIRES'},
+            {source:'p1', target:'s1', type:'GOVERNS'},
+            {source:'p1', target:'s2', type:'GOVERNS'},
+            {source:'s1', target:'e1', type:'HAS_EVIDENCE'},
+            {source:'p1', target:'e2', type:'HAS_EVIDENCE'},
+            {source:'e1', target:'c1', type:'VIOLATES'},
+            {source:'e1', target:'r2', type:'VIOLATES'},
+            {source:'c4', target:'r3', type:'IMPLEMENTS'}
+        ]);
+    }
+
+    await sleep(800);
+    if (progress) progress.style.display = 'none';
+    if (fill) fill.style.width = '0%';
+    if (window.webNetworkExcite) window.webNetworkExcite(0);
+
+    await sleep(400);
+    await runDemoUploadDebate();
+}
+
+async function runDemoUploadDebate() {
+    const welcome = document.getElementById('welcomeScreen');
+    if (welcome) welcome.style.display = 'none';
+    const debateToggle = document.getElementById('debateToggle');
+    if (debateToggle) debateToggle.checked = true;
+
+    addMessage('📄 Analyzing compliance of uploaded document: Apex_Security_Policy.pdf', 'user');
+    if (window.webNetworkExcite) window.webNetworkExcite(2.5);
+
+    const container = document.getElementById('chatMessages');
+
+    // Stage header
+    const stageHeader = document.createElement('div');
+    stageHeader.className = 'message assistant';
+    stageHeader.innerHTML = `
+        <div class="message-content" style="width:100%;text-align:center">
+            <div style="display:inline-flex;align-items:center;gap:10px;background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(78,222,163,0.1));border:1px solid rgba(139,92,246,0.3);border-radius:24px;padding:8px 20px;font-size:0.8rem;color:#d0bcff;font-weight:bold;letter-spacing:0.05em">
+                <span style="font-size:1.1rem">⚔️</span>
+                ANVESHA Multi-Agent Compliance Debate — Apex_Security_Policy.pdf
+                <span style="font-size:1.1rem">⚔️</span>
+            </div>
+            <div style="margin-top:8px;font-size:0.72rem;color:var(--text-muted)">3 specialized agents analyzing 47 claims across 12 control domains</div>
+        </div>`;
+    container.appendChild(stageHeader);
+    container.scrollTop = container.scrollHeight;
+
+    // ADVOCATE
+    const t1 = addTypingIndicator('💙 Advocate Agent — scanning for compliance evidence...');
+    await sleep(2800);
+    removeTypingIndicator(t1);
+    await addAgentChatBubble('💙 Advocate Agent — Pro-Compliance',
+`Based on my evidence traversal of the Apex_Security_Policy.pdf knowledge graph, I find substantial compliance across several critical domains:
+
+**[§1.0 — Encryption]** The policy mandates AES-256 encryption for all data in transit and at rest — this aligns with GDPR Art.32, ISO 27001 A.8.24, and PCI-DSS Req.3.4.
+
+**[§2.0 — Access Control]** Hardware MFA (Yubikey 5) is mandated for all administrative access. The 30-day RBAC recertification cycle demonstrates operational maturity — *"Access rights reviewed and recertified every 30 days by system owners"* (§2.4).
+
+**[§8.0 — Availability]** The 99.95% SLA with multi-AZ failover and monthly DR drills satisfies SOC 2 A1.1 — *"automated failover to DR site within 15 minutes"* (§8.0).
+
+**[§9.0 — Logging]** Centralized Splunk SIEM ingesting 500GB/day with ML behavioral analytics and 1-year hot retention directly satisfies PCI-DSS Requirement 10 and SOC 2 CC7.2.
+
+**Conclusion:** 4 of 12 controls are fully satisfied. The infrastructure demonstrates genuine investment in security compliance.`,
+        'advocate');
+
+    // SKEPTIC
+    const t2 = addTypingIndicator('🔴 Skeptic Agent — issuing counter-challenge...');
+    await sleep(2800);
+    removeTypingIndicator(t2);
+    await addAgentChatBubble('🔴 Skeptic Agent — Counter-Argument',
+`The Advocate has highlighted real strengths, but the critical failures in this document are severe enough to invalidate the overall compliance posture. I detected multiple hallucinated claims and direct internal contradictions:
+
+**[§3.0 — CRITICAL CONTRADICTION 🚨]** The document guarantees in §1.0 that *"100% of customer data is encrypted"*. However, §3.0 explicitly admits: *"the legacy transactions_db PostgreSQL database currently stores user credit card numbers and passwords in plain text."* This is not merely a gap — **the document is contradicting itself**. Credit card PANs stored in plaintext is a Level-1 PCI-DSS violation.
+
+**[Executive Summary — HALLUCINATION DETECTED 🚨]** The document claims to *"maintain PCI-DSS Level 1 compliance certification"*. This is demonstrably false — PCI-DSS Level 1 certification is incompatible with plaintext PAN storage. This claim is a fabrication.
+
+**[§10.2 — FALSE CLAIM 🚨]** Claims all 47 vendors are GDPR-assessed, but §10.2 states assessments are *"conducted at onboarding only"*. Annual re-assessment is not evidenced.
+
+**[§11.1 — CRITICAL GAP]** *"No anonymous reporting channel is available"* — this violates ISO 27001 A.6.8 and the EU Whistleblower Directive for organizations >50 employees.
+
+**Net Assessment:** 5 critical gaps, 3 PARTIAL controls, 8 detected hallucinations. Compliance score: 52% at best.`,
+        'skeptic');
+
+    // JUDGE
+    const t3 = addTypingIndicator('⚖️ Judge Adjudicator — rendering evidence-grounded verdict...');
+    await sleep(3200);
+    removeTypingIndicator(t3);
+
+    const judgeData = {
+        debate_mode: true,
+        verdict: "PARTIAL",
+        confidence: 52,
+        answer: `**ADJUDICATOR VERDICT: PARTIAL COMPLIANCE — 52% | RISK: HIGH**
+
+After weighing both arguments and conducting independent evidence correlation across all 12 control domains:
+
+**CONFIRMED VIOLATIONS (HIGH SEVERITY):**
+- §3.0 plaintext PAN storage in transactions_db — PCI-DSS Req.3 + GDPR Art.32 violation
+- §11.1 absence of anonymous reporting channel — ISO 27001 A.6.8 + EU Whistleblower Directive violation
+- §7.0 excessive data collection (browsing history, device fingerprints) — GDPR Art.5(1)(c) violation
+- §10.2 no periodic vendor re-assessment — GDPR Art.28 ongoing processor obligation unmet
+
+**CONFIRMED HALLUCINATIONS (8 DETECTED):**
+- "PCI-DSS Level 1 certification" in Executive Summary — **FALSE**, contradicted by §3.0
+- "100% encryption" in §1.0 — **FALSE**, contradicted by §3.0
+- "All vendors GDPR-assessed annually" — **FALSE**, contradicted by §10.2
+- "Multiple secure reporting channels" — **FALSE**, contradicted by §11.1
+
+**COMPLIANT DOMAINS:**
+- Network Security (§2.0) — ISO 27001 A.8.20: SATISFIED ✅
+- MFA + RBAC Access Control (§2.0-2.4) — SOC 2 CC6.1: SATISFIED ✅
+- Availability/DR (§8.0) — SOC 2 A1.1: SATISFIED ✅
+- Logging/SIEM (§9.0) — PCI-DSS Req.10: SATISFIED ✅
+
+**COMPLIANCE SCORE: 52% | IMMEDIATE ACTION REQUIRED**`,
+        advocate_argument: "4 of 12 controls fully satisfied including MFA, logging, network security, and availability.",
+        skeptic_argument: "5 critical gaps and 8 hallucinations detected including a fabricated PCI-DSS Level 1 certification claim.",
+        citations: [
+            "Apex_Security_Policy.pdf §1.0 — Encryption guarantee",
+            "Apex_Security_Policy.pdf §3.0 — Plaintext transactions_db admission",
+            "Apex_Security_Policy.pdf §11.1 — No anonymous reporting channel",
+            "Apex_Security_Policy.pdf Executive Summary — PCI-DSS Level 1 claim",
+            "PCI-DSS v4.0 Requirement 3.4",
+            "GDPR Article 32 — Security of Processing",
+            "ISO 27001:2022 Control A.6.8"
+        ],
+        verification: {
+            rejected_claims: [
+                {
+                    text: "'100% of customer data is encrypted in transit and at rest'",
+                    verdict: "FALSE",
+                    reasoning: "Directly contradicted by §3.0 which admits plaintext PAN storage in transactions_db.",
+                    evidence: "§3.0: transactions_db stores credit card numbers in plain text",
+                    correction: "Claim should read: 'Production application databases use AES-256; legacy transactions_db is currently non-compliant (see §3.0)'"
+                },
+                {
+                    text: "'We maintain PCI-DSS Level 1 compliance certification'",
+                    verdict: "HALLUCINATED",
+                    reasoning: "PCI-DSS Level 1 certification requires no plaintext PAN storage. §3.0 makes this certification claim impossible.",
+                    evidence: "§3.0: plaintext PAN storage confirmed",
+                    correction: "Remove this claim until plaintext PAN issue is fully remediated and QSA re-certifies."
+                },
+                {
+                    text: "'All 47 vendors are GDPR-assessed for data processing compliance'",
+                    verdict: "MISLEADING",
+                    reasoning: "§10.2 states assessments are 'at onboarding only' — not annual or ongoing.",
+                    evidence: "§10.2: security assessments conducted at onboarding only",
+                    correction: "Annual vendor re-assessment program must be implemented."
+                },
+                {
+                    text: "'We provide multiple secure channels for employee security reporting'",
+                    verdict: "FALSE",
+                    reasoning: "§11.1 explicitly states 'No anonymous reporting channel is available'.",
+                    evidence: "§11.1: No anonymous reporting channel is available",
+                    correction: "Implement whistleblower platform and update this claim."
+                }
+            ]
+        }
+    };
+
+    addAssistantMessage(judgeData.answer, 52, judgeData.citations, 'demo-judge-apex', judgeData);
+    await sleep(1500);
+
+    // Compliance report card in chat
+    const cr = APEX_DEMO_REPORT;
+    const reportMsg = document.createElement('div');
+    reportMsg.className = 'message assistant';
+    reportMsg.innerHTML = `
+        <div class="message-content" style="width:100%">
+            <div style="background:linear-gradient(135deg,rgba(139,92,246,0.12),rgba(255,180,171,0.05));border:1px solid rgba(139,92,246,0.3);border-radius:14px;padding:18px;margin-top:8px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+                    <div style="font-size:0.88rem;font-weight:bold;color:#d0bcff">📊 ANVESHA Compliance Analysis Report</div>
+                    <div style="font-size:0.72rem;color:var(--text-muted)">Apex_Security_Policy.pdf</div>
+                </div>
+                <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:14px;align-items:center">
+                    <div style="text-align:center;padding:10px 18px;background:rgba(255,180,171,0.1);border-radius:10px;border:1px solid rgba(255,180,171,0.3)">
+                        <div style="font-size:2.4rem;font-weight:900;color:#ffb4ab;line-height:1">52%</div>
+                        <div style="font-size:0.68rem;color:var(--text-muted);margin-top:2px">Compliance Score</div>
+                    </div>
+                    <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <span style="font-size:0.75rem;color:#4edea3;width:72px;flex-shrink:0">✅ MET (4)</span>
+                            <div style="flex:1;height:7px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden"><div style="height:100%;width:33%;background:#4edea3;border-radius:4px"></div></div>
+                            <span style="font-size:0.72rem;color:#4edea3;width:30px">33%</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <span style="font-size:0.75rem;color:#cebdff;width:72px;flex-shrink:0">⚠️ PARTIAL (3)</span>
+                            <div style="flex:1;height:7px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden"><div style="height:100%;width:25%;background:#cebdff;border-radius:4px"></div></div>
+                            <span style="font-size:0.72rem;color:#cebdff;width:30px">25%</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:10px">
+                            <span style="font-size:0.75rem;color:#ffb4ab;width:72px;flex-shrink:0">❌ GAP (5)</span>
+                            <div style="flex:1;height:7px;background:rgba(255,255,255,0.08);border-radius:4px;overflow:hidden"><div style="height:100%;width:42%;background:#ffb4ab;border-radius:4px"></div></div>
+                            <span style="font-size:0.72rem;color:#ffb4ab;width:30px">42%</span>
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:6px;padding:10px;background:rgba(255,180,171,0.06);border-radius:8px;margin-bottom:12px;align-items:flex-start">
+                    <span style="color:#ffb4ab;font-size:1rem;flex-shrink:0">🚨</span>
+                    <div style="font-size:0.76rem;color:#ffb4ab;line-height:1.5"><strong>8 Hallucinations / False Claims Detected</strong> — Including a fabricated PCI-DSS Level 1 certification claim in the Executive Summary and a direct self-contradiction on encryption guarantees (§1.0 vs §3.0).</div>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button onclick="demoViewCompliancePage()" style="background:rgba(139,92,246,0.2);border:1px solid rgba(139,92,246,0.4);color:#d0bcff;border-radius:8px;padding:7px 14px;font-size:0.75rem;font-weight:bold;cursor:pointer">
+                        🔍 View Full Compliance Matrix
+                    </button>
+                    <button onclick="mockDownloadAnnotatedPDF()" style="background:rgba(78,222,163,0.1);border:1px solid rgba(78,222,163,0.3);color:#4edea3;border-radius:8px;padding:7px 14px;font-size:0.75rem;font-weight:bold;cursor:pointer">
+                        📄 Download Annotated PDF Report
+                    </button>
+                    <button onclick="mockViewDetailedReport()" style="background:rgba(255,180,171,0.1);border:1px solid rgba(255,180,171,0.3);color:#ffb4ab;border-radius:8px;padding:7px 14px;font-size:0.75rem;font-weight:bold;cursor:pointer">
+                        📋 Full Hallucination Report
+                    </button>
+                </div>
+            </div>
+        </div>`;
+    container.appendChild(reportMsg);
+    container.scrollTop = container.scrollHeight;
+
+    // Update dashboard KPIs
+    const dashCompScore = document.getElementById('dashComplianceScore');
+    const dashCompCircle = document.getElementById('dashComplianceCircle');
+    if (dashCompScore) dashCompScore.textContent = '52%';
+    if (dashCompCircle) {
+        const c = 2 * Math.PI * 54;
+        dashCompCircle.style.strokeDasharray = `${c}`;
+        dashCompCircle.style.strokeDashoffset = `${c - (0.52 * c)}`;
+    }
+    const dashHallScore = document.getElementById('dashHallucinationScore');
+    const dashHallCircle = document.getElementById('dashHallucinationCircle');
+    if (dashHallScore) dashHallScore.textContent = '83%';
+    if (dashHallCircle) dashHallCircle.style.strokeDashoffset = 175 - (175 * 0.83);
+
+    window.lastReportId = 'demo-report-apex-2024';
+    window.activeComplianceReport = APEX_DEMO_REPORT;
+    window.activeAuditReport = APEX_DEMO_REPORT;
+    saveReportToLocal(APEX_DEMO_REPORT);
+    if (typeof loadAuditReports === 'function') loadAuditReports();
+    if (window.webNetworkExcite) window.webNetworkExcite(0);
+}
+
+function demoViewCompliancePage() {
+    switchMainView('compliance');
+    window.activeComplianceReport = APEX_DEMO_REPORT;
+    if (typeof renderComplianceMatrix === 'function') renderComplianceMatrix(APEX_DEMO_REPORT);
+    if (typeof renderCharts === 'function') renderCharts(APEX_DEMO_REPORT);
+}
+
+async function mockRunComplianceAudit() {
+    showToast('🔬 Running ANVESHA Compliance Gap Analysis...', 'info');
+    await sleep(2000);
+    showToast('✅ Analysis complete. 12 controls evaluated.', 'success');
+    window.activeComplianceReport = APEX_DEMO_REPORT;
+    window.activeAuditReport = APEX_DEMO_REPORT;
+    window.lastReportId = 'demo-report-apex-2024';
+    saveReportToLocal(APEX_DEMO_REPORT);
+    if (typeof renderComplianceMatrix === 'function') renderComplianceMatrix(APEX_DEMO_REPORT);
+    if (typeof renderCharts === 'function') renderCharts(APEX_DEMO_REPORT);
+    if (typeof loadAuditReports === 'function') loadAuditReports();
+}
+
+function mockDownloadAnnotatedPDF() {
+    showToast('🎨 Generating annotated compliance analysis report...', 'info');
+    setTimeout(() => {
+        const html = generateDemoAnnotatedHTMLReport();
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Apex_Security_Policy_ANNOTATED_ANVESHA.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('📄 Annotated analysis report downloaded!', 'success');
+    }, 2000);
+}
+
+function mockViewDetailedReport() {
+    showToast('📋 Generating full hallucination & compliance report...', 'info');
+    setTimeout(() => {
+        const html = generateDemoFullReport();
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Apex_Security_Policy_FULL_REPORT_ANVESHA.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('✅ Full report downloaded!', 'success');
+    }, 1500);
+}
+
+function generateDemoAnnotatedHTMLReport() {
+    const criticalGaps = APEX_DEMO_REPORT.controls.filter(c => c.status === 'GAP');
+    const partials = APEX_DEMO_REPORT.controls.filter(c => c.status === 'PARTIAL');
+    const mets = APEX_DEMO_REPORT.controls.filter(c => c.status === 'MET');
+
+    function controlCard(ctrl) {
+        const colorMap = { GAP: '#ef4444', PARTIAL: '#f59e0b', MET: '#22c55e' };
+        const bgMap = { GAP: 'rgba(239,68,68,0.06)', PARTIAL: 'rgba(245,158,11,0.06)', MET: 'rgba(34,197,94,0.06)' };
+        const labelMap = { GAP: '❌ CRITICAL GAP', PARTIAL: '⚠️ PARTIAL', MET: '✅ COMPLIANT' };
+        const color = colorMap[ctrl.status];
+        const bg = bgMap[ctrl.status];
+
+        const hallucinationBadges = (ctrl.hallucination_flags || []).map(h => {
+            const hc = h.verdict === 'FALSE' || h.verdict === 'HALLUCINATED' ? '#ef4444' : '#f59e0b';
+            return `<div style="margin:8px 0;padding:10px 12px;background:rgba(${hc==='#ef4444'?'239,68,68':'245,158,11'},0.08);border-left:3px solid ${hc};border-radius:4px">
+                <div style="color:${hc};font-size:0.73rem;font-weight:700;margin-bottom:4px">${h.verdict === 'FALSE' || h.verdict === 'HALLUCINATED' ? '🚩 HALLUCINATION / FALSE CLAIM' : '🟡 CONTROVERSIAL / UNVERIFIABLE'}</div>
+                <div style="color:#e2e8f0;font-size:0.78rem;margin-bottom:4px"><strong>Claim:</strong> "${h.claim}"</div>
+                <div style="color:#94a3b8;font-size:0.73rem;margin-bottom:3px"><strong>📍 Location:</strong> ${h.page || 'N/A'}</div>
+                <div style="color:#94a3b8;font-size:0.73rem"><strong>⚖️ Reason:</strong> ${h.reason}</div>
+            </div>`;
+        }).join('');
+
+        const evHTML = ctrl.evidence_found.map(e => `<div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.05);color:#94a3b8;font-size:0.74rem;font-style:italic">"${e}"</div>`).join('');
+        const remHTML = ctrl.remediation.length > 0
+            ? ctrl.remediation.map((r,i) => `<div style="display:flex;gap:8px;margin:4px 0"><span style="color:${color};font-weight:700;font-size:0.73rem">${i+1}.</span><span style="color:#cbd5e1;font-size:0.74rem">${r}</span></div>`).join('')
+            : '<div style="color:#4edea3;font-size:0.74rem">✅ No remediation required</div>';
+
+        return `<div style="border:1px solid ${color}33;border-left:4px solid ${color};border-radius:10px;padding:16px;margin:12px 0;background:${bg}">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+                <div>
+                    <span style="font-size:0.66rem;color:#94a3b8;font-family:'JetBrains Mono',monospace">[${ctrl.framework}] ${ctrl.requirement_id}</span>
+                    <div style="font-size:0.88rem;font-weight:700;color:white;margin-top:2px">${ctrl.name}</div>
+                </div>
+                <span style="background:${color}22;color:${color};border:1px solid ${color}55;padding:3px 10px;border-radius:20px;font-size:0.68rem;font-weight:700;white-space:nowrap;margin-left:8px">${labelMap[ctrl.status]}</span>
+            </div>
+            <div style="color:#94a3b8;font-size:0.76rem;margin-bottom:10px">${ctrl.description}</div>
+            <div style="font-size:0.73rem;font-weight:700;color:#d0bcff;margin-bottom:6px">📎 Evidence References:</div>
+            ${evHTML}
+            <div style="font-size:0.73rem;font-weight:700;color:#d0bcff;margin:10px 0 6px">🧠 AI Audit Reasoning:</div>
+            <div style="color:#cbd5e1;font-size:0.76rem;line-height:1.65;padding:8px;background:rgba(255,255,255,0.03);border-radius:6px">${ctrl.reasoning}</div>
+            ${hallucinationBadges.length > 0 ? `<div style="font-size:0.73rem;font-weight:700;color:#ef4444;margin:10px 0 4px">🚩 Hallucination / Falseness Detection:</div>${hallucinationBadges}` : ''}
+            ${ctrl.remediation.length > 0 ? `<div style="font-size:0.73rem;font-weight:700;color:#f59e0b;margin:10px 0 4px">🔧 Remediation Roadmap:</div>${remHTML}` : ''}
+        </div>`;
+    }
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ANVESHA Annotated Analysis — Apex_Security_Policy.pdf</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#0f0f13;color:#e2e8f0;min-height:100vh}
+.hero{background:linear-gradient(135deg,#1a0533 0%,#0f0f1a 45%,#0a1a0f 100%);padding:48px 40px 32px;border-bottom:1px solid rgba(139,92,246,0.2)}
+.hero-title{font-size:1.9rem;font-weight:900;background:linear-gradient(135deg,#d0bcff,#4edea3);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
+.kpi-row{display:flex;gap:14px;flex-wrap:wrap;padding:20px 40px;background:rgba(255,255,255,0.015);border-bottom:1px solid rgba(255,255,255,0.06)}
+.kpi{flex:1;min-width:100px;padding:14px;border-radius:10px;text-align:center}
+.kpi-val{font-size:2rem;font-weight:900;line-height:1}
+.kpi-label{font-size:0.66rem;color:#94a3b8;margin-top:3px;text-transform:uppercase;letter-spacing:0.08em}
+.pie-section{padding:20px 40px;display:flex;gap:28px;align-items:center;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,0.06);background:rgba(255,255,255,0.01)}
+.content{padding:20px 40px;max-width:920px}
+.section-title{font-size:0.95rem;font-weight:700;color:#d0bcff;margin:20px 0 10px;padding-bottom:5px;border-bottom:1px solid rgba(139,92,246,0.2)}
+.tag{display:inline-block;padding:3px 10px;border-radius:12px;font-size:0.66rem;font-weight:700;margin:2px}
+footer{padding:20px 40px;border-top:1px solid rgba(255,255,255,0.06);color:#475569;font-size:0.72rem;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+</style>
+</head>
+<body>
+<div class="hero">
+    <div style="font-size:0.68rem;color:#64748b;font-family:'JetBrains Mono',monospace;margin-bottom:8px">ANVESHA INTELLIGENCE PLATFORM — ANNOTATED COMPLIANCE ANALYSIS</div>
+    <div class="hero-title">Apex_Security_Policy.pdf</div>
+    <div style="color:#94a3b8;font-size:0.88rem;margin-top:4px">Multi-Agent AI Compliance Audit with Hallucination Detection • ${new Date().toLocaleString()}</div>
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <span class="tag" style="background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3)">🚩 8 Hallucinations Detected</span>
+        <span class="tag" style="background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3)">🟡 3 Controversial Claims</span>
+        <span class="tag" style="background:rgba(34,197,94,0.1);color:#4edea3;border:1px solid rgba(34,197,94,0.25)">✅ 29 Verified True Claims</span>
+        <span class="tag" style="background:rgba(139,92,246,0.12);color:#d0bcff;border:1px solid rgba(139,92,246,0.3)">⚖️ 47 Total Claims Verified</span>
+    </div>
+</div>
+<div class="kpi-row">
+    <div class="kpi" style="background:rgba(255,180,171,0.08);border:1px solid rgba(255,180,171,0.2)"><div class="kpi-val" style="color:#ffb4ab">52%</div><div class="kpi-label">Overall Compliance</div></div>
+    <div class="kpi" style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15)"><div class="kpi-val" style="color:#4edea3;font-size:1.6rem">4</div><div class="kpi-label">Controls Met</div></div>
+    <div class="kpi" style="background:rgba(206,189,255,0.06);border:1px solid rgba(206,189,255,0.15)"><div class="kpi-val" style="color:#cebdff;font-size:1.6rem">3</div><div class="kpi-label">Partial Controls</div></div>
+    <div class="kpi" style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15)"><div class="kpi-val" style="color:#ef4444;font-size:1.6rem">5</div><div class="kpi-label">Critical Gaps</div></div>
+    <div class="kpi" style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15)"><div class="kpi-val" style="color:#ef4444;font-size:1.6rem">8</div><div class="kpi-label">Hallucinations</div></div>
+    <div class="kpi" style="background:rgba(139,92,246,0.06);border:1px solid rgba(139,92,246,0.15)"><div class="kpi-val" style="color:#d0bcff;font-size:1.6rem">17%</div><div class="kpi-label">Hallucination Rate</div></div>
+</div>
+<div class="pie-section">
+    <div>
+        <svg width="150" height="150" viewBox="0 0 150 150">
+            <circle cx="75" cy="75" r="55" fill="none" stroke="#ef4444" stroke-width="24" stroke-dasharray="${2*Math.PI*55*0.42} ${2*Math.PI*55*0.58}" stroke-dashoffset="${2*Math.PI*55*0.25}" transform="rotate(-90 75 75)"/>
+            <circle cx="75" cy="75" r="55" fill="none" stroke="#4edea3" stroke-width="24" stroke-dasharray="${2*Math.PI*55*0.33} ${2*Math.PI*55*0.67}" stroke-dashoffset="${2*Math.PI*55*(0.25-0.42)}" transform="rotate(-90 75 75)"/>
+            <circle cx="75" cy="75" r="55" fill="none" stroke="#cebdff" stroke-width="24" stroke-dasharray="${2*Math.PI*55*0.25} ${2*Math.PI*55*0.75}" stroke-dashoffset="${2*Math.PI*55*(0.25-0.42-0.33)}" transform="rotate(-90 75 75)"/>
+            <text x="75" y="70" text-anchor="middle" fill="white" font-size="18" font-weight="900" font-family="Inter,sans-serif">52%</text>
+            <text x="75" y="86" text-anchor="middle" fill="#64748b" font-size="8" font-family="Inter,sans-serif">Compliant</text>
+        </svg>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;align-items:center;gap:8px"><div style="width:12px;height:12px;border-radius:50%;background:#4edea3;flex-shrink:0"></div><span style="font-size:0.78rem;color:#4edea3"><strong>33%</strong> MET — 4 controls satisfied</span></div>
+        <div style="display:flex;align-items:center;gap:8px"><div style="width:12px;height:12px;border-radius:50%;background:#cebdff;flex-shrink:0"></div><span style="font-size:0.78rem;color:#cebdff"><strong>25%</strong> PARTIAL — 3 partial controls</span></div>
+        <div style="display:flex;align-items:center;gap:8px"><div style="width:12px;height:12px;border-radius:50%;background:#ef4444;flex-shrink:0"></div><span style="font-size:0.78rem;color:#ef4444"><strong>42%</strong> GAP — 5 critical failures</span></div>
+    </div>
+    <div style="flex:1;min-width:180px">
+        <div style="font-size:0.73rem;font-weight:700;color:#d0bcff;margin-bottom:8px">Hallucination Breakdown</div>
+        ${[['True Claims', 29, '#4edea3'], ['Hallucinated', 8, '#ef4444'], ['Controversial', 10, '#f59e0b']].map(([l,v,c])=>`
+        <div style="display:flex;align-items:center;gap:8px;margin:5px 0">
+            <span style="font-size:0.7rem;color:${c};width:100px">${l}</span>
+            <div style="flex:1;height:5px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden"><div style="height:100%;width:${Math.round(v/47*100)}%;background:${c};border-radius:3px"></div></div>
+            <span style="font-size:0.7rem;color:${c};width:20px">${v}</span>
+        </div>`).join('')}
+    </div>
+</div>
+<div class="content">
+    <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:10px;padding:14px;margin:10px 0">
+        <div style="font-size:0.82rem;font-weight:700;color:#ef4444;margin-bottom:6px">🚨 Key Findings</div>
+        <div style="color:#fca5a5;font-size:0.76rem;line-height:1.7">This document makes <strong>8 false or hallucinated claims</strong>. Most critically: §1.0 guarantees "100% encryption" while §3.0 admits plaintext PAN storage in transactions_db — a direct internal contradiction and Level-1 PCI-DSS violation. The Executive Summary's claim of "PCI-DSS Level 1 compliance" is demonstrably false and constitutes a fabricated compliance statement.</div>
+    </div>
+    <div class="section-title">🔴 Critical Gaps (5 Controls)</div>
+    ${criticalGaps.map(controlCard).join('')}
+    <div class="section-title">🟡 Partial Controls (3 Controls)</div>
+    ${partials.map(controlCard).join('')}
+    <div class="section-title">✅ Compliant Controls (4 Controls)</div>
+    ${mets.map(controlCard).join('')}
+</div>
+<footer>
+    <span>ANVESHA Intelligence Platform — Confidential Compliance Analysis</span>
+    <span>Generated: ${new Date().toLocaleString()} | Apex_Security_Policy.pdf</span>
+</footer>
+</body>
+</html>`;
+}
+
+function generateDemoFullReport() {
+    const allH = APEX_DEMO_REPORT.controls.flatMap(c =>
+        (c.hallucination_flags || []).map(h => ({...h, control: c.name, framework: c.framework}))
+    );
+    const rows = allH.map((h, i) => {
+        const color = h.verdict === 'FALSE' || h.verdict === 'HALLUCINATED' ? '#ef4444' : '#f59e0b';
+        return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+            <td style="padding:10px 12px;font-size:0.73rem;color:#94a3b8;font-family:'JetBrains Mono',monospace">${i+1}</td>
+            <td style="padding:10px 12px;font-size:0.73rem;color:#e2e8f0">"${h.claim}"</td>
+            <td style="padding:10px 12px"><span style="background:${color}22;color:${color};padding:2px 8px;border-radius:10px;font-size:0.68rem;font-weight:700">${h.verdict}</span></td>
+            <td style="padding:10px 12px;font-size:0.7rem;color:#94a3b8;font-family:'JetBrains Mono',monospace">${h.page || '-'}</td>
+            <td style="padding:10px 12px;font-size:0.7rem;color:#94a3b8">${h.reason}</td>
+        </tr>`;
+    }).join('');
+
+    const trendBars = [
+        {period:'Q2 2024', score:25, color:'#ef4444'},
+        {period:'Q3 2024', score:38, color:'#f59e0b'},
+        {period:'Q4 2024', score:52, color:'#f59e0b'},
+    ].map((t,i) => {
+        const h = Math.round(t.score/100*160);
+        const x = 50+i*120;
+        const y = 180-h;
+        return `<rect x="${x}" y="${y}" width="60" height="${h}" fill="${t.color}" rx="4" opacity="0.85"/>
+        <text x="${x+30}" y="${y-8}" text-anchor="middle" fill="${t.color}" font-size="12" font-weight="700" font-family="Inter,sans-serif">${t.score}%</text>
+        <text x="${x+30}" y="198" text-anchor="middle" fill="#64748b" font-size="10" font-family="Inter,sans-serif">${t.period}</text>`;
+    }).join('');
+
+    const recs = [
+        ['CRITICAL','#ef4444','Encrypt transactions_db immediately','Implement pgcrypto or migrate to encrypted-at-rest storage. All credit card PANs and passwords must be encrypted with AES-256 within 48 hours.'],
+        ['CRITICAL','#ef4444','Correct false PCI-DSS certification claim','Remove or caveat the "PCI-DSS Level 1 certification" claim. Engage a QSA immediately for emergency re-assessment.'],
+        ['HIGH','#f59e0b','Implement anonymous security reporting channel','Deploy a whistleblower platform. Required by the EU Whistleblower Directive for organizations >50 employees.'],
+        ['HIGH','#f59e0b','Fix GDPR breach notification SLA to 72 calendar hours','Replace "3 business days" with "72 calendar hours" in §5.1 and establish 24/7 DPO on-call rotation.'],
+        ['HIGH','#f59e0b','Implement annual vendor re-assessment','All 47 processors must be re-assessed annually. Automate DPA renewal tracking.'],
+        ['MEDIUM','#cebdff','Refine data collection scope','Remove browsing history / device fingerprint collection from §7.0 or justify with explicit DPIA.'],
+        ['MEDIUM','#cebdff','Shorten cryptographic key rotation','Rotate encryption keys quarterly per NIST SP 800-57 for Level 3 data sensitivity.'],
+    ];
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ANVESHA Full Audit Report — Apex_Security_Policy.pdf</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:#0a0a10;color:#e2e8f0}
+.header{background:linear-gradient(135deg,#1a0533,#0a1020);padding:48px 48px 32px;border-bottom:2px solid rgba(139,92,246,0.3)}
+.header-title{font-size:1.7rem;font-weight:900;background:linear-gradient(135deg,#d0bcff,#4edea3,#ffb4ab);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+section{padding:28px 48px;border-bottom:1px solid rgba(255,255,255,0.06)}
+.sec-h{font-size:1rem;font-weight:700;color:#d0bcff;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.kpi-row{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px}
+.kpi{flex:1;min-width:100px;padding:14px;border-radius:10px;text-align:center}
+.kpi-val{font-size:1.9rem;font-weight:900;line-height:1}
+.kpi-label{font-size:0.65rem;color:#94a3b8;margin-top:3px;text-transform:uppercase;letter-spacing:0.07em}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:10px 12px;background:rgba(139,92,246,0.1);color:#d0bcff;font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em}
+.rec{display:flex;gap:12px;padding:12px;border:1px solid rgba(255,255,255,0.07);border-radius:8px;margin:8px 0;background:rgba(255,255,255,0.015)}
+.rec-num{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.68rem;font-weight:700;flex-shrink:0;margin-top:2px}
+footer{padding:20px 48px;border-top:1px solid rgba(255,255,255,0.06);color:#475569;font-size:0.7rem;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+</style>
+</head>
+<body>
+<div class="header">
+    <div style="font-size:0.68rem;color:#64748b;font-family:'JetBrains Mono',monospace;margin-bottom:8px">ANVESHA INTELLIGENCE PLATFORM • COMPREHENSIVE AUDIT REPORT</div>
+    <div class="header-title">Full Compliance & Hallucination Audit</div>
+    <div style="color:#94a3b8;font-size:0.88rem;margin-top:4px">Apex_Security_Policy.pdf — ${new Date().toLocaleString()}</div>
+    <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+        <span style="background:rgba(239,68,68,0.12);color:#ef4444;border:1px solid rgba(239,68,68,0.3);padding:4px 12px;border-radius:20px;font-size:0.7rem;font-weight:700">⚠️ HIGH RISK</span>
+        <span style="background:rgba(206,189,255,0.1);color:#d0bcff;border:1px solid rgba(139,92,246,0.3);padding:4px 12px;border-radius:20px;font-size:0.7rem;font-weight:700">GDPR • PCI-DSS v4.0 • ISO 27001:2022 • SOC 2 Type II</span>
+        <span style="background:rgba(34,197,94,0.08);color:#4edea3;border:1px solid rgba(34,197,94,0.2);padding:4px 12px;border-radius:20px;font-size:0.7rem;font-weight:700">3 Agents • 47 Claims Verified</span>
+    </div>
+</div>
+
+<section>
+    <div class="sec-h">📊 Executive Summary</div>
+    <div class="kpi-row">
+        <div class="kpi" style="background:rgba(255,180,171,0.06);border:1px solid rgba(255,180,171,0.2)"><div class="kpi-val" style="color:#ffb4ab">52%</div><div class="kpi-label">Compliance Score</div></div>
+        <div class="kpi" style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15)"><div class="kpi-val" style="color:#4edea3">4/12</div><div class="kpi-label">Controls Met</div></div>
+        <div class="kpi" style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15)"><div class="kpi-val" style="color:#ef4444">8</div><div class="kpi-label">Hallucinations</div></div>
+        <div class="kpi" style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.15)"><div class="kpi-val" style="color:#f59e0b">17%</div><div class="kpi-label">Hallucination Rate</div></div>
+        <div class="kpi" style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15)"><div class="kpi-val" style="color:#4edea3">29</div><div class="kpi-label">Verified True</div></div>
+    </div>
+    <div style="color:#94a3b8;font-size:0.82rem;line-height:1.8;background:rgba(255,255,255,0.02);padding:14px;border-radius:8px">
+        The ANVESHA multi-agent audit of <strong style="color:#e2e8f0">Apex_Security_Policy.pdf</strong> reveals a <strong style="color:#ffb4ab">HIGH RISK compliance posture (52%)</strong>. The most severe finding is a <strong style="color:#ef4444">direct self-contradicting admission</strong>: §1.0 guarantees 100% AES-256 encryption while §3.0 explicitly admits plaintext PAN + password storage in transactions_db — simultaneously violating <strong style="color:#e2e8f0">GDPR Article 32, PCI-DSS Requirement 3.4, and ISO 27001 A.8.24</strong>. The Executive Summary contains a <strong style="color:#ef4444">hallucinated PCI-DSS Level 1 certification claim</strong> that is demonstrably false. Immediate remediation is required before any compliance certification can be truthfully asserted.
+    </div>
+</section>
+
+<section>
+    <div class="sec-h">🚩 Hallucination & Falseness Report</div>
+    <table>
+        <thead><tr><th>#</th><th>Claim (as written)</th><th>Verdict</th><th>Location</th><th>Analysis</th></tr></thead>
+        <tbody>${rows}</tbody>
+    </table>
+</section>
+
+<section>
+    <div class="sec-h">📈 Compliance Score Trend</div>
+    <svg width="400" height="220" viewBox="0 0 400 220" style="overflow:visible">
+        <line x1="30" y1="185" x2="400" y2="185" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+        ${trendBars}
+    </svg>
+    <div style="color:#64748b;font-size:0.73rem;margin-top:6px">Score improved +27 points Q2→Q4 2024 but remains HIGH RISK. Target: ≥80% by Q2 2025.</div>
+</section>
+
+<section>
+    <div class="sec-h">🔧 Priority Remediation Roadmap</div>
+    ${recs.map(([sev,col,title,desc],i)=>`
+    <div class="rec">
+        <div class="rec-num" style="background:${col}22;color:${col};border:1px solid ${col}44">${i+1}</div>
+        <div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                <strong style="color:#e2e8f0;font-size:0.8rem">${title}</strong>
+                <span style="background:${col}15;color:${col};padding:1px 7px;border-radius:10px;font-size:0.63rem;font-weight:700">${sev}</span>
+            </div>
+            <div style="color:#94a3b8;font-size:0.74rem;line-height:1.6">${desc}</div>
+        </div>
+    </div>`).join('')}
+</section>
+
+<footer>
+    <span>ANVESHA Intelligence Platform — Confidential Audit Report</span>
+    <span>Generated: ${new Date().toLocaleString()}</span>
+</footer>
+</body></html>`;
 }
 
 async function mockSendMessage() {
     const input = document.getElementById('chatInput');
-    const text = input.value.trim();
-    if(!text) return;
-    
-    input.value = '';
+    const text = input ? input.value.trim() : '';
+    if (!text) return;
+    if (input) input.value = '';
     addMessage(text, 'user');
-    
-    const typingId = 'typing-' + Date.now();
-    addTypingIndicator('Multi-Agent Debate Protocol Initiated...');
-
-    setTimeout(() => {
-        removeTypingIndicator(typingId);
-        
-        const debateData = {
-            advocate: "Apex Payments guarantees 100% of customer data is encrypted in transit and at rest using AES-256 (Section 1.0). All teams are expected to follow this. This demonstrates strong compliance.",
-            skeptic: "However, Section 3.0 explicitly states the legacy transactions_db stores credit card numbers and passwords in plain text. This is a massive exception to the AES-256 rule and poses a critical security risk.",
-            verdict: "Partial Compliance",
-            summary: "While Apex Payments has a strong AES-256 encryption policy on paper, the legacy transactions_db plaintext storage creates a critical gap that violates the core policy requirement."
-        };
-
-        const citations = [
-            { source: 'Apex_Security_Policy.pdf', text: 'Apex Payments guarantees that 100% of customer data is encrypted...' },
-            { source: 'Apex_Security_Policy.pdf', text: 'legacy transactions_db PostgreSQL database currently stores user credit card numbers and passwords in plain text...' }
-        ];
-
-        const answerText = "**Debate Concluded**:\n\nThe agents have reviewed the Apex Payments policy. There is a direct contradiction regarding data encryption.";
-        
-        addAssistantMessage(answerText, 0.7, citations, 'demo-answer-1', debateData);
-    }, 4000);
-}
-
-async function mockRunComplianceAudit() {
-    showToast('Initiating zero-trust compliance audit...', 'info');
-    
-    setTimeout(() => {
-        showToast('Audit complete. Generating report...', 'success');
-        
-        const fakeReport = {
-            report_id: "demo-report-apex",
-            generated_at: new Date().toISOString(),
-            compliance_score: 85,
-            summary: {
-                total_controls: 5,
-                met_controls: 4,
-                partial_controls: 0,
-                gap_controls: 1
-            },
-            controls: [
-                {
-                    requirement_id: "REQ-01",
-                    name: "Data Encryption",
-                    description: "All customer data must be encrypted.",
-                    status: "GAP",
-                    evidence_found: ["transactions_db plaintext storage"],
-                    reasoning: "Failed due to plaintext legacy DB.",
-                    remediation: ["Migrate reporting tools to support encrypted data", "Implement AES-256 on transactions_db"]
-                },
-                {
-                    requirement_id: "REQ-02",
-                    name: "Access Control",
-                    description: "MFA for all admin accounts.",
-                    status: "MET",
-                    evidence_found: ["MFA hardware tokens mandated in Section 2.0"],
-                    reasoning: "Policy fully satisfies requirement.",
-                    remediation: []
-                },
-                {
-                    requirement_id: "REQ-03",
-                    name: "Incident Response",
-                    description: "Report incidents immediately.",
-                    status: "MET",
-                    evidence_found: ["Section 5.0 mandates immediate reporting"],
-                    reasoning: "Satisfied.",
-                    remediation: []
-                },
-                {
-                    requirement_id: "REQ-04",
-                    name: "RBAC Reviews",
-                    description: "Review access every 30 days.",
-                    status: "MET",
-                    evidence_found: ["Access rights reviewed every 30 days (Sec 2.0)"],
-                    reasoning: "Satisfied.",
-                    remediation: []
-                },
-                {
-                    requirement_id: "REQ-05",
-                    name: "Log Monitoring",
-                    description: "Produce authentication logs.",
-                    status: "MET",
-                    evidence_found: ["Section 6.0 requires auth logs"],
-                    reasoning: "Satisfied.",
-                    remediation: []
-                }
-            ]
-        };
-
-        if(window.renderComplianceMatrix) renderComplianceMatrix(fakeReport);
-        if(window.renderCharts) renderCharts(fakeReport);
-        
-        // Save globally for download mock
-        window.lastReportId = "demo-report-apex";
-        window.activeAuditReport = fakeReport;
-        
-    }, 3000);
+    const t = addTypingIndicator('Multi-Agent Debate Protocol Initiated...');
+    await sleep(3500);
+    removeTypingIndicator(t);
+    const debateData = {
+        debate_mode: true,
+        verdict: "PARTIAL",
+        confidence: 52,
+        answer: "**PARTIAL COMPLIANCE.** The policy mandates AES-256 encryption in §1.0 but §3.0 admits plaintext PAN storage in transactions_db. This is a direct contradiction and critical compliance failure.",
+        advocate_argument: "§1.0 mandates AES-256 for all data at rest.",
+        skeptic_argument: "§3.0 admits transactions_db stores credit card numbers in plaintext.",
+        citations: ["Apex_Security_Policy.pdf §1.0", "Apex_Security_Policy.pdf §3.0"]
+    };
+    await simulateDebateChat(debateData, 'NOOP', 52, debateData.citations, 'demo-q-1');
 }
