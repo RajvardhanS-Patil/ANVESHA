@@ -1810,6 +1810,101 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 
+<!-- ANVESHA Voice Agent FAB -->
+<button id="voiceAgentFab" onclick="toggleVoiceAgent()" title="Talk to ANVESHA Agent" style="
+    position:fixed;bottom:24px;right:24px;z-index:9999;
+    width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;
+    background:linear-gradient(135deg,#7c3aed,#4f46e5);
+    box-shadow:0 4px 20px rgba(124,58,237,0.5),0 0 40px rgba(124,58,237,0.2);
+    display:flex;align-items:center;justify-content:center;
+    transition:all 0.3s ease;animation:fabPulse 3s ease-in-out infinite;
+">
+    <span class="material-symbols-outlined" style="color:white;font-size:26px">call</span>
+</button>
+<style>
+@keyframes fabPulse{0%,100%{box-shadow:0 4px 20px rgba(124,58,237,0.5),0 0 40px rgba(124,58,237,0.2)}50%{box-shadow:0 4px 28px rgba(124,58,237,0.7),0 0 60px rgba(124,58,237,0.35)}}
+#voiceAgentFab:hover{transform:scale(1.1);box-shadow:0 4px 28px rgba(124,58,237,0.8)}
+
+/* Voice Agent Modal */
+#voiceAgentModal{display:none;position:fixed;bottom:90px;right:24px;z-index:10000;width:380px;max-height:600px;border-radius:20px;overflow:hidden;
+    background:linear-gradient(165deg,rgba(26,5,51,0.97),rgba(15,15,26,0.98));
+    border:1px solid rgba(139,92,246,0.25);
+    box-shadow:0 20px 60px rgba(0,0,0,0.6),0 0 40px rgba(124,58,237,0.15);
+    backdrop-filter:blur(30px);font-family:'Geist','Inter',sans-serif;
+    animation:agentSlideIn 0.35s ease-out}
+@keyframes agentSlideIn{from{opacity:0;transform:translateY(20px) scale(0.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+.agent-header{padding:18px 20px 14px;display:flex;align-items:center;gap:12px;border-bottom:1px solid rgba(139,92,246,0.15)}
+.agent-avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#06b6d4);display:flex;align-items:center;justify-content:center;box-shadow:0 0 20px rgba(124,58,237,0.4);flex-shrink:0}
+.agent-status-dot{width:8px;height:8px;border-radius:50%;background:#4edea3;box-shadow:0 0 8px #4edea3;animation:statusPulse 2s ease-in-out infinite}
+@keyframes statusPulse{0%,100%{opacity:1}50%{opacity:0.5}}
+
+.agent-transcript{padding:14px 18px;height:320px;overflow-y:auto;display:flex;flex-direction:column;gap:10px}
+.agent-transcript::-webkit-scrollbar{width:3px}
+.agent-transcript::-webkit-scrollbar-thumb{background:rgba(139,92,246,0.3);border-radius:10px}
+.agent-bubble{max-width:88%;padding:10px 14px;border-radius:14px;font-size:0.8rem;line-height:1.55;animation:bubbleFade 0.3s ease-out}
+@keyframes bubbleFade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.agent-bubble.agent{background:rgba(139,92,246,0.12);border:1px solid rgba(139,92,246,0.2);color:#e0d4ff;align-self:flex-start;border-bottom-left-radius:4px}
+.agent-bubble.user{background:rgba(78,222,163,0.1);border:1px solid rgba(78,222,163,0.2);color:#b8f0d8;align-self:flex-end;border-bottom-right-radius:4px}
+.agent-bubble.system{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);color:#94a3b8;align-self:center;font-size:0.72rem;text-align:center}
+
+.agent-controls{padding:14px 18px;border-top:1px solid rgba(139,92,246,0.12);display:flex;align-items:center;gap:10px}
+.agent-mic-btn{width:48px;height:48px;border-radius:50%;border:2px solid rgba(139,92,246,0.3);background:rgba(139,92,246,0.08);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.3s;flex-shrink:0}
+.agent-mic-btn:hover{background:rgba(139,92,246,0.2);border-color:rgba(139,92,246,0.5)}
+.agent-mic-btn.listening{background:rgba(239,68,68,0.15);border-color:#ef4444;animation:micPulse 1.2s ease-in-out infinite}
+@keyframes micPulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.4)}50%{box-shadow:0 0 0 12px rgba(239,68,68,0)}}
+.agent-mic-btn.speaking{background:rgba(78,222,163,0.12);border-color:#4edea3;animation:speakPulse 0.8s ease-in-out infinite}
+@keyframes speakPulse{0%,100%{box-shadow:0 0 0 0 rgba(78,222,163,0.3)}50%{box-shadow:0 0 0 8px rgba(78,222,163,0)}}
+
+.agent-wave{display:flex;align-items:center;gap:2px;height:20px}
+.agent-wave .bar{width:3px;border-radius:2px;background:#7c3aed;animation:waveBar 0.8s ease-in-out infinite}
+.agent-wave .bar:nth-child(2){animation-delay:0.1s}.agent-wave .bar:nth-child(3){animation-delay:0.2s}.agent-wave .bar:nth-child(4){animation-delay:0.3s}.agent-wave .bar:nth-child(5){animation-delay:0.15s}
+@keyframes waveBar{0%,100%{height:4px}50%{height:18px}}
+</style>
+
+<!-- Voice Agent Modal -->
+<div id="voiceAgentModal">
+    <div class="agent-header">
+        <div class="agent-avatar">
+            <span class="material-symbols-outlined" style="color:white;font-size:22px">smart_toy</span>
+        </div>
+        <div style="flex:1">
+            <div style="font-size:0.88rem;font-weight:700;color:#e0d4ff;letter-spacing:0.02em">ANVESHA Agent</div>
+            <div style="display:flex;align-items:center;gap:5px;font-size:0.7rem;color:#94a3b8">
+                <span class="agent-status-dot" id="agentStatusDot"></span>
+                <span id="agentStatusText">Ready</span>
+            </div>
+        </div>
+        <button onclick="toggleVoiceAgent()" style="background:none;border:none;cursor:pointer;padding:4px">
+            <span class="material-symbols-outlined" style="color:#94a3b8;font-size:20px">close</span>
+        </button>
+    </div>
+    <div class="agent-transcript custom-scrollbar" id="agentTranscript"></div>
+    <div class="agent-controls">
+        <button class="agent-mic-btn" id="agentMicBtn" onclick="toggleAgentListening()">
+            <span class="material-symbols-outlined" style="color:#d0bcff;font-size:22px" id="agentMicIcon">mic</span>
+        </button>
+        <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+            <div id="agentInputDisplay" style="font-size:0.76rem;color:#94a3b8;min-height:18px">Tap mic or type to ask about the report</div>
+            <div id="agentWaveform" style="display:none" class="agent-wave">
+                <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            </div>
+        </div>
+        <button onclick="agentEndCall()" style="width:36px;height:36px;border-radius:50%;background:#ef4444;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <span class="material-symbols-outlined" style="color:white;font-size:18px">call_end</span>
+        </button>
+    </div>
+    <div style="padding:6px 18px 12px;display:flex;gap:6px;flex-wrap:wrap">
+        <button class="agent-quick-q" onclick="agentAskQuick('What are the main findings?')">Main findings?</button>
+        <button class="agent-quick-q" onclick="agentAskQuick('What are the critical gaps?')">Critical gaps?</button>
+        <button class="agent-quick-q" onclick="agentAskQuick('What about encryption?')">Encryption?</button>
+        <button class="agent-quick-q" onclick="agentAskQuick('What hallucinations were found?')">Hallucinations?</button>
+        <button class="agent-quick-q" onclick="agentAskQuick('What should we fix first?')">Fix first?</button>
+    </div>
+    <style>.agent-quick-q{background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2);color:#cebdff;padding:4px 10px;border-radius:14px;font-size:0.68rem;cursor:pointer;transition:all 0.2s;font-family:'Geist',sans-serif}.agent-quick-q:hover{background:rgba(139,92,246,0.2);border-color:rgba(139,92,246,0.4)}</style>
+</div>
+
 <!-- App Logic -->
 <script src="/static/app.js?v=stitch5"></script>
 </body>

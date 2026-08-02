@@ -4053,3 +4053,312 @@ p{margin:6px 0;text-align:justify}
 </body>
 </html>`;
 }
+
+
+// ============================================================
+// ANVESHA VOICE AGENT — AI Calling Agent
+// Uses Web Speech API (SpeechSynthesis + SpeechRecognition)
+// ============================================================
+
+let voiceAgentOpen = false;
+let voiceAgentListening = false;
+let voiceAgentSpeaking = false;
+let voiceAgentRecognition = null;
+let voiceAgentGreeted = false;
+
+// ─── Demo-mode hardcoded Q&A knowledge base ─────────
+const AGENT_KNOWLEDGE = [
+    {
+        triggers: ['main finding', 'key finding', 'overview', 'summary', 'what did you find', 'tell me about', 'report summary'],
+        response: `The Apex Security Policy scored 52% overall compliance — which places it in the HIGH RISK category. Out of 12 controls evaluated, only 4 are fully met, 3 are partial, and 5 have critical gaps. The most alarming finding is a direct self-contradiction: Section 1.0 claims 100% AES-256 encryption, but Section 3.0 admits that the transactions database stores credit card numbers in plain text. We also detected 8 hallucinated or false claims in the document, including a fabricated PCI-DSS Level 1 certification claim.`
+    },
+    {
+        triggers: ['critical gap', 'gaps', 'worst', 'biggest problem', 'major issue', 'serious'],
+        response: `There are 5 critical gaps. First, the plaintext storage of credit card PANs in the transactions database — this violates both PCI-DSS Requirement 3 and GDPR Article 32. Second, there's no anonymous security reporting channel, violating ISO 27001 A.6.8. Third, excessive data collection including browsing history and device fingerprints violates GDPR Article 5 data minimization. Fourth, vendor security assessments are only performed at onboarding — not annually — violating GDPR Article 28. And fifth, the document itself lacks a proper anonymous whistleblower mechanism required by the EU Whistleblower Directive.`
+    },
+    {
+        triggers: ['encryption', 'aes', 'encrypt', 'plaintext', 'plain text', 'transactions_db'],
+        response: `This is the most critical finding. Section 1.0 makes a bold guarantee: "100% of customer data is encrypted in transit and at rest using AES-256." However, Section 3.0 explicitly admits that the legacy transactions_db PostgreSQL database stores credit card numbers AND passwords in plain text. This isn't just a gap — it's a self-contradicting statement within the same document. The policy literally promises full encryption while admitting to a plaintext exception. This makes the Section 1.0 claim a false statement, and it directly violates PCI-DSS Requirement 3.4 which mandates PANs be rendered unreadable.`
+    },
+    {
+        triggers: ['hallucination', 'false claim', 'fabricat', 'lie', 'made up', 'untrue'],
+        response: `We detected 8 hallucinated or false claims. The most severe is the PCI-DSS Level 1 certification claim in the Executive Summary — this is impossible while plaintext PANs exist. The 100% encryption guarantee in Section 1.0 is directly contradicted by Section 3.0. The claim that all 47 vendors are GDPR-assessed annually is false — Section 10.2 says assessments happen at onboarding only. And the claim about providing multiple secure reporting channels is contradicted by Section 11.1 which explicitly states no anonymous reporting channel is available. Our hallucination rate for this document is 17%, which is considered HIGH.`
+    },
+    {
+        triggers: ['fix first', 'remediat', 'what should', 'priority', 'action', 'recommend', 'next step'],
+        response: `The top priority is encrypting the transactions database immediately. Use PostgreSQL's pgcrypto extension or migrate to encrypted-at-rest storage. All credit card PANs must be encrypted within 48 hours — this is a Level 1 PCI-DSS violation. Second, remove or correct the false PCI-DSS Level 1 certification claim from the Executive Summary. Third, implement an anonymous whistleblower platform — this is legally required by the EU Whistleblower Directive for organizations with more than 50 employees. Fourth, change the breach notification timeline from "3 business days" to "72 calendar hours" to comply with GDPR Article 33.`
+    },
+    {
+        triggers: ['compliance score', 'score', 'percentage', 'how compliant', 'rating'],
+        response: `The overall compliance score is 52%. Breaking this down: 33% of controls, that's 4 out of 12, are fully met — these include network security, MFA access controls, system availability, and logging. 25% or 3 controls are partially met, including cryptography, incident response, and compliance review. And 42% — 5 controls — have critical gaps. For a payment processing company handling credit card data, a 52% score means immediate remediation is required before any legitimate compliance certification can be claimed.`
+    },
+    {
+        triggers: ['access control', 'mfa', 'authentication', 'rbac', 'yubikey'],
+        response: `Access control is actually one of the strongest areas. Section 2.0 mandates Multi-Factor Authentication using hardware Yubikey 5 tokens for all administrative access — this exceeds the typical SMS or TOTP requirements. The Role-Based Access Control matrix with 30-day review cycles demonstrates strong operational maturity. This control is fully met and satisfies SOC 2 CC6.1 requirements. If only the rest of the document were this strong.`
+    },
+    {
+        triggers: ['backup', 'recovery', 'business continuity', 'disaster', 'dr '],
+        response: `Section 4.0 reveals a significant business continuity risk. While backups are automated weekly, they're stored on the same physical server rack as the production database. This means a single fire, flood, or rack failure would destroy both the production data and its backups simultaneously. Additionally, restoration testing hasn't been performed in 18 months — meaning those backups may be corrupted or incomplete and nobody would know. The standard best practice is a 3-2-1 strategy: 3 copies, 2 different media types, 1 off-site.`
+    },
+    {
+        triggers: ['incident', 'breach notification', '72 hour', 'gdpr article 33'],
+        response: `There's a subtle but important issue with breach notification. Section 5.0 says incidents should be reported to the CISO immediately, which is good internally. But there's no explicit 72-calendar-hour deadline for notifying the supervisory authority as required by GDPR Article 33. If the policy uses "3 business days" anywhere, that could extend beyond 72 hours over weekends — creating a real compliance risk. We recommend explicitly defining a 72-calendar-hour notification SLA and establishing a 24/7 DPO on-call rotation.`
+    },
+    {
+        triggers: ['vendor', 'third party', 'processor', 'supplier', 'dpa'],
+        response: `Section 10 mentions 47 third-party service providers. While Data Processing Agreements exist with major cloud providers like AWS and Google Cloud, the critical gap is that security assessments are only conducted at vendor onboarding — not annually. GDPR Article 28 requires ongoing processor oversight. This means a vendor could have been secure when onboarded 3 years ago but may have degraded since. The remediation is to implement an annual vendor security re-assessment program and create a Vendor Risk Register with quarterly reviews for Tier 1 processors.`
+    },
+    {
+        triggers: ['hello', 'hi', 'hey', 'good morning', 'good evening', 'howdy'],
+        response: `Hello! I'm the ANVESHA compliance intelligence agent. I've analyzed the Apex Security Policy document and found some concerning issues — a 52% compliance score with 8 false claims detected. What would you like to know about? I can discuss the critical gaps, hallucinated claims, encryption issues, or any specific section of the policy.`
+    },
+    {
+        triggers: ['thank', 'bye', 'goodbye', 'that\'s all', 'done'],
+        response: `You're welcome! Remember, the most urgent action is encrypting the transactions database to resolve the PCI-DSS violation. If you need to revisit any findings, I'm always here. You can also download the highlighted document or full report from the chat interface. Stay compliant!`
+    }
+];
+
+const AGENT_GREETING = `Hello! I'm the ANVESHA compliance intelligence agent. I've completed the analysis of the Apex Security Policy document. The overall compliance score is 52% — HIGH RISK. I detected 8 false or hallucinated claims, including a fabricated PCI-DSS Level 1 certification. How can I help you understand the findings?`;
+
+function toggleVoiceAgent() {
+    const modal = document.getElementById('voiceAgentModal');
+    voiceAgentOpen = !voiceAgentOpen;
+    modal.style.display = voiceAgentOpen ? 'block' : 'none';
+
+    if (voiceAgentOpen && !voiceAgentGreeted) {
+        voiceAgentGreeted = true;
+        addAgentBubble('system', '🔗 Connected to ANVESHA Intelligence');
+        setTimeout(() => {
+            addAgentBubble('agent', AGENT_GREETING);
+            agentSpeak(AGENT_GREETING);
+        }, 600);
+    }
+}
+
+function addAgentBubble(type, text) {
+    const transcript = document.getElementById('agentTranscript');
+    const bubble = document.createElement('div');
+    bubble.className = `agent-bubble ${type}`;
+    bubble.textContent = text;
+    transcript.appendChild(bubble);
+    transcript.scrollTop = transcript.scrollHeight;
+    return bubble;
+}
+
+function agentSpeak(text) {
+    if (!('speechSynthesis' in window)) return;
+
+    window.speechSynthesis.cancel();
+    voiceAgentSpeaking = true;
+    updateAgentStatus('speaking');
+
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.rate = 1.05;
+    utter.pitch = 1.0;
+    utter.volume = 1.0;
+
+    // Prefer a good English voice
+    const voices = window.speechSynthesis.getVoices();
+    const preferred = voices.find(v =>
+        v.name.includes('Google UK English Female') ||
+        v.name.includes('Google US English') ||
+        v.name.includes('Microsoft Zira') ||
+        v.name.includes('Samantha') ||
+        (v.lang.startsWith('en') && v.name.includes('Female'))
+    ) || voices.find(v => v.lang.startsWith('en')) || voices[0];
+    if (preferred) utter.voice = preferred;
+
+    utter.onend = () => {
+        voiceAgentSpeaking = false;
+        updateAgentStatus('ready');
+    };
+    utter.onerror = () => {
+        voiceAgentSpeaking = false;
+        updateAgentStatus('ready');
+    };
+
+    window.speechSynthesis.speak(utter);
+}
+
+function updateAgentStatus(state) {
+    const dot = document.getElementById('agentStatusDot');
+    const text = document.getElementById('agentStatusText');
+    const micBtn = document.getElementById('agentMicBtn');
+    const micIcon = document.getElementById('agentMicIcon');
+    const wave = document.getElementById('agentWaveform');
+    const display = document.getElementById('agentInputDisplay');
+
+    switch(state) {
+        case 'listening':
+            dot.style.background = '#ef4444';
+            dot.style.boxShadow = '0 0 8px #ef4444';
+            text.textContent = 'Listening...';
+            micBtn.className = 'agent-mic-btn listening';
+            micIcon.textContent = 'mic';
+            micIcon.style.color = '#ef4444';
+            wave.style.display = 'flex';
+            display.textContent = 'Listening — speak your question...';
+            break;
+        case 'speaking':
+            dot.style.background = '#4edea3';
+            dot.style.boxShadow = '0 0 8px #4edea3';
+            text.textContent = 'Speaking...';
+            micBtn.className = 'agent-mic-btn speaking';
+            micIcon.textContent = 'volume_up';
+            micIcon.style.color = '#4edea3';
+            wave.style.display = 'flex';
+            wave.querySelectorAll('.bar').forEach(b => b.style.background = '#4edea3');
+            display.textContent = 'ANVESHA Agent is speaking...';
+            break;
+        case 'processing':
+            dot.style.background = '#f59e0b';
+            dot.style.boxShadow = '0 0 8px #f59e0b';
+            text.textContent = 'Thinking...';
+            micBtn.className = 'agent-mic-btn';
+            micIcon.textContent = 'psychology';
+            micIcon.style.color = '#f59e0b';
+            wave.style.display = 'none';
+            display.textContent = 'Processing your question...';
+            break;
+        default:
+            dot.style.background = '#4edea3';
+            dot.style.boxShadow = '0 0 8px #4edea3';
+            text.textContent = 'Ready';
+            micBtn.className = 'agent-mic-btn';
+            micIcon.textContent = 'mic';
+            micIcon.style.color = '#d0bcff';
+            wave.style.display = 'none';
+            wave.querySelectorAll('.bar').forEach(b => b.style.background = '#7c3aed');
+            display.textContent = 'Tap mic or tap a quick question';
+            break;
+    }
+}
+
+function toggleAgentListening() {
+    if (voiceAgentSpeaking) {
+        window.speechSynthesis.cancel();
+        voiceAgentSpeaking = false;
+        updateAgentStatus('ready');
+        return;
+    }
+    if (voiceAgentListening) {
+        stopAgentListening();
+        return;
+    }
+    startAgentListening();
+}
+
+function startAgentListening() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        addAgentBubble('system', '⚠️ Speech recognition not supported in this browser. Use Chrome for voice input.');
+        return;
+    }
+
+    voiceAgentRecognition = new SpeechRecognition();
+    voiceAgentRecognition.continuous = false;
+    voiceAgentRecognition.interimResults = true;
+    voiceAgentRecognition.lang = 'en-US';
+    voiceAgentListening = true;
+    updateAgentStatus('listening');
+
+    let finalTranscript = '';
+
+    voiceAgentRecognition.onresult = (event) => {
+        let interim = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            if (event.results[i].isFinal) {
+                finalTranscript += event.results[i][0].transcript;
+            } else {
+                interim += event.results[i][0].transcript;
+            }
+        }
+        const display = document.getElementById('agentInputDisplay');
+        if (display) display.textContent = finalTranscript || interim || 'Listening...';
+    };
+
+    voiceAgentRecognition.onend = () => {
+        voiceAgentListening = false;
+        if (finalTranscript.trim()) {
+            processAgentQuestion(finalTranscript.trim());
+        } else {
+            updateAgentStatus('ready');
+        }
+    };
+
+    voiceAgentRecognition.onerror = (e) => {
+        voiceAgentListening = false;
+        updateAgentStatus('ready');
+        if (e.error !== 'no-speech' && e.error !== 'aborted') {
+            addAgentBubble('system', `⚠️ Mic error: ${e.error}. Try again or use quick questions below.`);
+        }
+    };
+
+    voiceAgentRecognition.start();
+}
+
+function stopAgentListening() {
+    if (voiceAgentRecognition) {
+        voiceAgentRecognition.stop();
+    }
+    voiceAgentListening = false;
+}
+
+function agentAskQuick(question) {
+    if (voiceAgentSpeaking) {
+        window.speechSynthesis.cancel();
+        voiceAgentSpeaking = false;
+    }
+    processAgentQuestion(question);
+}
+
+async function processAgentQuestion(question) {
+    addAgentBubble('user', question);
+    updateAgentStatus('processing');
+
+    // Small delay for natural feel
+    await new Promise(r => setTimeout(r, 800));
+
+    const answer = findAgentAnswer(question);
+    addAgentBubble('agent', answer);
+    agentSpeak(answer);
+}
+
+function findAgentAnswer(question) {
+    const q = question.toLowerCase();
+
+    // Try matching from knowledge base
+    for (const entry of AGENT_KNOWLEDGE) {
+        for (const trigger of entry.triggers) {
+            if (q.includes(trigger.toLowerCase())) {
+                return entry.response;
+            }
+        }
+    }
+
+    // Fallback: generic response
+    return `That's a great question. Based on my analysis of the Apex Security Policy, the document scores 52% compliance with 5 critical gaps and 8 hallucinated claims. The most critical issue is the plaintext storage of credit card numbers in the transactions database, which violates PCI-DSS Requirement 3. Would you like me to explain any specific finding in more detail? You can ask about encryption, access controls, hallucinations, incident response, or vendor management.`;
+}
+
+function agentEndCall() {
+    if (voiceAgentSpeaking) window.speechSynthesis.cancel();
+    if (voiceAgentListening && voiceAgentRecognition) voiceAgentRecognition.stop();
+    voiceAgentSpeaking = false;
+    voiceAgentListening = false;
+
+    addAgentBubble('agent', 'Thank you for consulting with ANVESHA. Remember — the transactions database encryption is your top priority. Stay compliant!');
+    agentSpeak('Thank you for consulting with ANVESHA. Stay compliant!');
+
+    setTimeout(() => {
+        voiceAgentOpen = false;
+        document.getElementById('voiceAgentModal').style.display = 'none';
+        updateAgentStatus('ready');
+    }, 4000);
+}
+
+// Preload voices (some browsers need this)
+if ('speechSynthesis' in window) {
+    window.speechSynthesis.onvoiceschanged = () => {
+        window.speechSynthesis.getVoices();
+    };
+}
