@@ -10,7 +10,6 @@
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
-<script type="module" src="https://unpkg.com/@splinetool/viewer@1.9.5/build/spline-viewer.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
     body {
@@ -352,6 +351,10 @@
             <span class="flex items-center gap-1"><span id="groqStatus" class="status-dot"></span>Groq</span>
             <span class="flex items-center gap-1"><span id="geminiStatus" class="status-dot"></span>Gemini</span>
         </div>
+        <button id="demoModeBtn" onclick="toggleDemoMode()" class="flex items-center gap-2 px-3 py-1.5 rounded-full border border-primary/30 text-[11px] font-bold uppercase tracking-wider text-primary hover:bg-primary/10 transition-colors mr-2" title="Activate Presentation Demo Mode">
+            <span class="material-symbols-outlined text-[14px]">play_circle</span>
+            Demo Mode
+        </button>
         <button onclick="openSettingsModal()" class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors p-2 hover:bg-white/5 rounded-full" title="GraphRAG Settings">settings</button>
         <button onclick="toggleNotificationsPopover()" class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors p-2 hover:bg-white/5 rounded-full relative" title="System Alerts & Activity">
             notifications

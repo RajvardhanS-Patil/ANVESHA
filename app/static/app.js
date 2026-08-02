@@ -109,6 +109,7 @@ function initUpload() {
 }
 
 async function uploadFile(file) {
+    if (window.isDemoMode) return mockUploadFile(file);
     const progress = document.getElementById('uploadProgress');
     const status = document.getElementById('uploadStatus');
     const fill = document.getElementById('progressFill');
@@ -400,6 +401,7 @@ async function askQuestion(question) {
 }
 
 async function sendMessage() {
+    if (window.isDemoMode) return mockSendMessage();
     const input = document.getElementById('chatInput');
     const question = input.value.trim();
     if (!question) return;
@@ -603,8 +605,7 @@ function addTypingIndicator(customText = null) {
     msg.id = id;
     msg.innerHTML = `
         <div class="typing-indicator" style="display: flex; flex-direction: column; gap: 10px; align-items: center; min-width: 120px;">
-            <spline-viewer url="/static/reactive_orb.spline" style="width: 100px; height: 100px;"></spline-viewer>
-            <div style="display: flex; gap: 6px; padding-bottom: 8px;">
+            <div style="display: flex; gap: 6px; padding-bottom: 8px; margin-top: 15px;">
                 <div class="typing-dot"></div>
                 <div class="typing-dot"></div>
                 <div class="typing-dot"></div>
@@ -638,19 +639,19 @@ async function simulateDebateChat(data, typingId, confidence, citations, answerI
     
     // Advocate Message
     const t1 = addTypingIndicator('💙 Advocate Agent analyzing evidence...');
-    await new Promise(r => setTimeout(r, 600));
+    await new Promise(r => setTimeout(r, 2000));
     removeTypingIndicator(t1);
-    addAgentChatBubble('💙 Advocate Agent — Pro-Compliance', advocate, 'advocate');
+    await addAgentChatBubble('💙 Advocate Agent — Pro-Compliance', advocate, 'advocate');
     
     // Skeptic Message
     const t2 = addTypingIndicator('🔴 Skeptic Agent challenging compliance...');
-    await new Promise(r => setTimeout(r, 600));
+    await new Promise(r => setTimeout(r, 2000));
     removeTypingIndicator(t2);
-    addAgentChatBubble('🔴 Skeptic Agent — Counter-Argument', skeptic, 'skeptic');
+    await addAgentChatBubble('🔴 Skeptic Agent — Counter-Argument', skeptic, 'skeptic');
     
     // Verdict Message
     const t3 = addTypingIndicator('⚖️ Judge Adjudicator rendering verdict...');
-    await new Promise(r => setTimeout(r, 800));
+    await new Promise(r => setTimeout(r, 2500));
     removeTypingIndicator(t3);
     
     if (answerId !== null) {
@@ -659,7 +660,7 @@ async function simulateDebateChat(data, typingId, confidence, citations, answerI
     container.scrollTop = container.scrollHeight;
 }
 
-function addAgentChatBubble(agentName, text, type) {
+async function addAgentChatBubble(agentName, text, type) {
     const container = document.getElementById('chatMessages');
     const msg = document.createElement('div');
     const isAdvocate = type === 'advocate';
@@ -689,11 +690,46 @@ function addAgentChatBubble(agentName, text, type) {
     msg.innerHTML = `
         <div class="message-content" style="width: 100%;">
             <div style="display:flex;align-items:center;gap:6px;font-weight:bold;margin-bottom:10px;font-size:0.78rem;color:${headerColor};text-transform:uppercase;letter-spacing:0.08em;">${agentName}</div>
-            <div style="font-size:0.87rem;line-height:1.65;color:var(--text-primary)">${formatAnswer(text)}</div>
+            <div class="agent-text-content" style="font-size:0.87rem;line-height:1.65;color:var(--text-primary)"></div>
         </div>
     `;
     container.appendChild(msg);
     container.scrollTop = container.scrollHeight;
+
+    const contentDiv = msg.querySelector('.agent-text-content');
+    const formattedHtml = formatAnswer(text);
+    
+    await new Promise(resolve => {
+        contentDiv.innerHTML = formattedHtml;
+        const textNodes = [];
+        const walk = document.createTreeWalker(contentDiv, NodeFilter.SHOW_TEXT, null, false);
+        let node;
+        while(node = walk.nextNode()) {
+            textNodes.push({ node, text: node.nodeValue });
+            node.nodeValue = '';
+        }
+        
+        let nodeIndex = 0;
+        let charIndex = 0;
+        
+        function type() {
+            if (nodeIndex >= textNodes.length) {
+                resolve();
+                return;
+            }
+            const current = textNodes[nodeIndex];
+            current.node.nodeValue += current.text[charIndex];
+            charIndex++;
+            container.scrollTop = container.scrollHeight;
+            if (charIndex >= current.text.length) {
+                charIndex = 0;
+                nodeIndex++;
+            }
+            // Small random delay for realistic typing effect
+            setTimeout(type, Math.random() * 10 + 5);
+        }
+        type();
+    });
 }
 
 
@@ -1304,6 +1340,18 @@ function toggleAuditDetails(id) {
 }
 
 async function downloadAuditReport() {
+    if (window.isDemoMode) {
+        showToast('Generating mock PDF report...', 'success');
+        const text = '%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n5 0 obj\n<< /Length 44 >>\nstream\nBT\n/F1 24 Tf\n100 700 Td\n(Demo PDF Report) Tj\nET\nendstream\nendobj\nxref\n0 6\n0000000000 65535 f \n0000000009 00000 n \n0000000058 00000 n \n0000000115 00000 n \n0000000225 00000 n \n0000000313 00000 n \ntrailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n406\n%%EOF';
+        const blob = new Blob([text], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Apex_Payments_Audit_Report.pdf';
+        a.click();
+        URL.revokeObjectURL(url);
+        return;
+    }
     if (!lastReportId) return;
     try {
         const res = await fetch(`/api/audit/report/${lastReportId}/export`);
@@ -1632,6 +1680,7 @@ async function loadComplianceMatrix() {
 }
 
 async function runComplianceAuditAndLoad() {
+    if (window.isDemoMode) return mockRunComplianceAudit();
     const grid = document.getElementById('complianceControlsGrid');
     if (grid) {
         grid.innerHTML = `
@@ -2474,3 +2523,189 @@ async function sendComplianceConsultMessage() {
 
 
 
+
+
+// --- DEMO MODE MOCK LOGIC ---
+window.isDemoMode = false;
+
+function toggleDemoMode() {
+    window.isDemoMode = true;
+    const btn = document.getElementById('demoModeBtn');
+    if (btn) {
+        btn.classList.add('bg-primary/20', 'border-primary');
+        btn.innerHTML = `<span class="material-symbols-outlined text-[14px]">auto_awesome</span> Demo Active`;
+    }
+    showToast('Demo Mode Activated! Starting automated tour...', 'info');
+    runAutomatedDemo();
+}
+
+async function runAutomatedDemo() {
+    // 1. Switch to Dashboard
+    switchMainView('dashboard');
+    
+    // 2. Simulate Upload
+    const fakeFile = new File([''], 'Apex_Security_Policy.pdf', {type: 'application/pdf'});
+    await mockUploadFile(fakeFile);
+
+    // 3. Wait a bit, then switch to debate mode and ask question
+    setTimeout(async () => {
+        focusDebateMode();
+        document.getElementById('chatInput').value = "Does Apex Payments encrypt all data at rest?";
+        await mockSendMessage();
+    }, 2000);
+
+    // 4. Run Compliance Audit
+    setTimeout(async () => {
+        switchMainView('compliance');
+        await mockRunComplianceAudit();
+    }, 12000); // 12 seconds later to give time to read debate
+}
+
+async function mockUploadFile(file) {
+    const uploadText = document.getElementById('uploadText');
+    const uploadSpinner = document.getElementById('uploadSpinner');
+    if(uploadText) uploadText.innerText = 'Parsing Apex_Security_Policy.pdf...';
+    if(uploadSpinner) uploadSpinner.style.display = 'block';
+
+    return new Promise(resolve => {
+        setTimeout(() => {
+            if(uploadText) uploadText.innerText = 'Drop files here or click to upload';
+            if(uploadSpinner) uploadSpinner.style.display = 'none';
+            showToast('Document ingested and knowledge graph updated.', 'success');
+            
+            // Add fake doc to UI
+            const docList = document.getElementById('recentDocsList');
+            if(docList) {
+                const div = document.createElement('div');
+                div.className = 'doc-item';
+                div.innerHTML = `<span class="material-symbols-outlined text-red-400">picture_as_pdf</span>
+                                 <span class="truncate">Apex_Security_Policy.pdf</span>
+                                 <span class="ml-auto text-[9px] text-on-surface-variant">Just now</span>`;
+                docList.prepend(div);
+            }
+            if (window.renderGraph) {
+                renderGraph([
+                    {id: '1', name: 'Apex Payments', type: 'Policy'},
+                    {id: '2', name: 'transactions_db', type: 'System'},
+                    {id: '3', name: 'AES-256', type: 'Control'},
+                    {id: '4', name: 'MFA', type: 'Control'},
+                    {id: '5', name: 'Plaintext Exposure', type: 'Evidence'}
+                ], [
+                    {source: '1', target: '2', type: 'GOVERNS'},
+                    {source: '1', target: '3', type: 'REQUIRES'},
+                    {source: '1', target: '4', type: 'REQUIRES'},
+                    {source: '2', target: '5', type: 'HAS_EVIDENCE'},
+                    {source: '5', target: '3', type: 'VIOLATES'}
+                ]);
+            }
+            resolve();
+        }, 3000);
+    });
+}
+
+async function mockSendMessage() {
+    const input = document.getElementById('chatInput');
+    const text = input.value.trim();
+    if(!text) return;
+    
+    input.value = '';
+    addMessage(text, 'user');
+    
+    const typingId = 'typing-' + Date.now();
+    addTypingIndicator('Multi-Agent Debate Protocol Initiated...');
+
+    setTimeout(() => {
+        removeTypingIndicator(typingId);
+        
+        const debateData = {
+            advocate: "Apex Payments guarantees 100% of customer data is encrypted in transit and at rest using AES-256 (Section 1.0). All teams are expected to follow this. This demonstrates strong compliance.",
+            skeptic: "However, Section 3.0 explicitly states the legacy transactions_db stores credit card numbers and passwords in plain text. This is a massive exception to the AES-256 rule and poses a critical security risk.",
+            verdict: "Partial Compliance",
+            summary: "While Apex Payments has a strong AES-256 encryption policy on paper, the legacy transactions_db plaintext storage creates a critical gap that violates the core policy requirement."
+        };
+
+        const citations = [
+            { source: 'Apex_Security_Policy.pdf', text: 'Apex Payments guarantees that 100% of customer data is encrypted...' },
+            { source: 'Apex_Security_Policy.pdf', text: 'legacy transactions_db PostgreSQL database currently stores user credit card numbers and passwords in plain text...' }
+        ];
+
+        const answerText = "**Debate Concluded**:\n\nThe agents have reviewed the Apex Payments policy. There is a direct contradiction regarding data encryption.";
+        
+        addAssistantMessage(answerText, 0.7, citations, 'demo-answer-1', debateData);
+    }, 4000);
+}
+
+async function mockRunComplianceAudit() {
+    showToast('Initiating zero-trust compliance audit...', 'info');
+    
+    setTimeout(() => {
+        showToast('Audit complete. Generating report...', 'success');
+        
+        const fakeReport = {
+            report_id: "demo-report-apex",
+            generated_at: new Date().toISOString(),
+            compliance_score: 85,
+            summary: {
+                total_controls: 5,
+                met_controls: 4,
+                partial_controls: 0,
+                gap_controls: 1
+            },
+            controls: [
+                {
+                    requirement_id: "REQ-01",
+                    name: "Data Encryption",
+                    description: "All customer data must be encrypted.",
+                    status: "GAP",
+                    evidence_found: ["transactions_db plaintext storage"],
+                    reasoning: "Failed due to plaintext legacy DB.",
+                    remediation: ["Migrate reporting tools to support encrypted data", "Implement AES-256 on transactions_db"]
+                },
+                {
+                    requirement_id: "REQ-02",
+                    name: "Access Control",
+                    description: "MFA for all admin accounts.",
+                    status: "MET",
+                    evidence_found: ["MFA hardware tokens mandated in Section 2.0"],
+                    reasoning: "Policy fully satisfies requirement.",
+                    remediation: []
+                },
+                {
+                    requirement_id: "REQ-03",
+                    name: "Incident Response",
+                    description: "Report incidents immediately.",
+                    status: "MET",
+                    evidence_found: ["Section 5.0 mandates immediate reporting"],
+                    reasoning: "Satisfied.",
+                    remediation: []
+                },
+                {
+                    requirement_id: "REQ-04",
+                    name: "RBAC Reviews",
+                    description: "Review access every 30 days.",
+                    status: "MET",
+                    evidence_found: ["Access rights reviewed every 30 days (Sec 2.0)"],
+                    reasoning: "Satisfied.",
+                    remediation: []
+                },
+                {
+                    requirement_id: "REQ-05",
+                    name: "Log Monitoring",
+                    description: "Produce authentication logs.",
+                    status: "MET",
+                    evidence_found: ["Section 6.0 requires auth logs"],
+                    reasoning: "Satisfied.",
+                    remediation: []
+                }
+            ]
+        };
+
+        if(window.renderComplianceMatrix) renderComplianceMatrix(fakeReport);
+        if(window.renderCharts) renderCharts(fakeReport);
+        
+        // Save globally for download mock
+        window.lastReportId = "demo-report-apex";
+        window.activeAuditReport = fakeReport;
+        
+    }, 3000);
+}
