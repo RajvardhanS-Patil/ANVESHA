@@ -38,9 +38,10 @@ ENV APP_ENV=production
 # Expose port
 EXPOSE 8000
 
-# Health check
+# Health check (Use 127.0.0.1 instead of localhost to avoid IPv6 routing issues)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD python -c "import httpx; r = httpx.get('http://localhost:8000/health'); r.raise_for_status()" || exit 1
+    CMD sh -c "python -c \"import httpx; r = httpx.get('http://127.0.0.1:${PORT:-8000}/health'); r.raise_for_status()\"" || exit 1
 
 # Start with uvicorn — single worker to stay within RAM limits
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--timeout-keep-alive", "65"]
+# Use shell form to allow environment variable expansion (Render sets PORT)
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1 --timeout-keep-alive 65

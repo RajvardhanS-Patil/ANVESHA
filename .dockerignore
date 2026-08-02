@@ -1,0 +1,12 @@
+.venv/
+.env
+.git/
+__pycache__/
+*.pyc
+scratch/
+anvesha_stitch/
+anvesha_stitch.zip
+patch.js
+patch.py
+commit_script.bat
+commit_script.ps1
