@@ -74,6 +74,12 @@ class Settings(BaseSettings):
     lyzr_api_key: Optional[str] = Field(default=None, description="Lyzr API Key")
     lyzr_agent_id: Optional[str] = Field(default=None, description="Lyzr Agent ID")
 
+    # --- Twilio (AI Voice Calling) ---
+    twilio_account_sid: Optional[str] = Field(default=None, description="Twilio Account SID")
+    twilio_auth_token: Optional[str] = Field(default=None, description="Twilio Auth Token")
+    twilio_phone_number: Optional[str] = Field(default=None, description="Twilio phone number (E.164 format, e.g. +1234567890)")
+    twilio_base_url: Optional[str] = Field(default=None, description="Public base URL for Twilio webhooks (e.g. ngrok URL)")
+
     # --- Server ---
     host: str = Field(default="0.0.0.0", description="Server host")
     port: int = Field(default=8000, description="Server port")

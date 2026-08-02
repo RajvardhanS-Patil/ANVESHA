@@ -38,3 +38,4 @@ uuid6==2024.7.10
 
 # === Document Annotation ===
 PyMuPDF==1.28.0
+twilio>=9.0.0

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ANVESHA — Frontend Application Logic
  * Handles: chat, file upload, graph visualization, status polling
  */
@@ -4369,4 +4369,88 @@ if ('speechSynthesis' in window) {
     window.speechSynthesis.onvoiceschanged = () => {
         window.speechSynthesis.getVoices();
     };
+}
+
+
+// ============================================================
+// PHONE CALL FEATURE — Twilio AI Calling
+// ============================================================
+
+async function initiatePhoneCall() {
+    const phoneInput = document.getElementById('agentPhoneInput');
+    const statusDiv = document.getElementById('phoneCallStatus');
+    const callBtn = document.getElementById('phoneCallBtn');
+    
+    let phone = (phoneInput?.value || '').trim();
+    
+    if (!phone) {
+        statusDiv.style.display = 'block';
+        statusDiv.style.color = '#ffb4ab';
+        statusDiv.textContent = 'Please enter your phone number';
+        return;
+    }
+    
+    // Auto-format: add +91 if just 10 digits
+    if (/^\d{10}$/.test(phone)) {
+        phone = '+91' + phone;
+    }
+    // Remove spaces
+    phone = phone.replace(/\s+/g, '');
+    
+    if (!/^\+\d{10,15}$/.test(phone)) {
+        statusDiv.style.display = 'block';
+        statusDiv.style.color = '#ffb4ab';
+        statusDiv.textContent = 'Invalid format. Use +91XXXXXXXXXX';
+        return;
+    }
+    
+    // Build report summary for context
+    let reportSummary = 'No active report.';
+    if (window.activeComplianceReport) {
+        const r = window.activeComplianceReport;
+        reportSummary = Compliance Score: %.  +
+            Controls: ;
+    }
+    
+    // UI feedback
+    callBtn.disabled = true;
+    callBtn.style.opacity = '0.6';
+    callBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;animation:spin 1s linear infinite">sync</span> Calling...';
+    statusDiv.style.display = 'block';
+    statusDiv.style.color = '#4edea3';
+    statusDiv.textContent = Calling ...;
+    
+    addAgentBubble('system', 📞 Initiating phone call to ...);
+    
+    try {
+        const res = await fetch('/api/voice/call', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                phone_number: phone,
+                report_summary: reportSummary.substring(0, 6000)
+            })
+        });
+        
+        const data = await res.json();
+        
+        if (!res.ok) {
+            throw new Error(data.detail || 'Call failed');
+        }
+        
+        statusDiv.style.color = '#4edea3';
+        statusDiv.textContent = ✅ ;
+        addAgentBubble('agent', 📞 I'm calling your phone now! Pick up to discuss the compliance report. Call ID: ...);
+        agentSpeak('I am calling your phone now. Please pick up to discuss the compliance report with me.');
+        
+    } catch (err) {
+        console.error('Phone call error:', err);
+        statusDiv.style.color = '#ffb4ab';
+        statusDiv.textContent = ❌ ;
+        addAgentBubble('system', ⚠️ Call failed: );
+    } finally {
+        callBtn.disabled = false;
+        callBtn.style.opacity = '1';
+        callBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">call</span> Call';
+    }
 }

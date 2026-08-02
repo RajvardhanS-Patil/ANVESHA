@@ -1902,6 +1902,29 @@ document.addEventListener('DOMContentLoaded', () => {
         <button class="agent-quick-q" onclick="agentAskQuick('What hallucinations were found?')">Hallucinations?</button>
         <button class="agent-quick-q" onclick="agentAskQuick('What should we fix first?')">Fix first?</button>
     </div>
+    <!-- Phone Call Section -->
+    <div style="padding:8px 18px 14px;border-top:1px solid rgba(139,92,246,0.1)">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px">
+            <span class="material-symbols-outlined" style="color:#7c3aed;font-size:16px">phone_in_talk</span>
+            <span style="font-size:0.72rem;font-weight:600;color:#d0bcff;letter-spacing:0.04em">CALL MY PHONE</span>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+            <input type="tel" id="agentPhoneInput" placeholder="+91 XXXXXXXXXX"
+                   style="flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(139,92,246,0.2);
+                   border-radius:10px;padding:8px 12px;color:#e0d4ff;font-size:0.78rem;
+                   font-family:'Geist',sans-serif;outline:none"
+                   onfocus="this.style.borderColor='rgba(139,92,246,0.5)'"
+                   onblur="this.style.borderColor='rgba(139,92,246,0.2)'" />
+            <button onclick="initiatePhoneCall()" id="phoneCallBtn" style="
+                background:linear-gradient(135deg,#16a34a,#059669);border:none;border-radius:10px;
+                padding:8px 14px;color:white;font-size:0.75rem;font-weight:600;cursor:pointer;
+                display:flex;align-items:center;gap:5px;white-space:nowrap;
+                transition:all 0.2s;font-family:'Geist',sans-serif">
+                <span class="material-symbols-outlined" style="font-size:16px">call</span> Call
+            </button>
+        </div>
+        <div id="phoneCallStatus" style="font-size:0.68rem;color:#94a3b8;margin-top:5px;display:none"></div>
+    </div>
     <style>.agent-quick-q{background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2);color:#cebdff;padding:4px 10px;border-radius:14px;font-size:0.68rem;cursor:pointer;transition:all 0.2s;font-family:'Geist',sans-serif}.agent-quick-q:hover{background:rgba(139,92,246,0.2);border-color:rgba(139,92,246,0.4)}</style>
 </div>
 

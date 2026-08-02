@@ -170,6 +170,14 @@ app.include_router(verification_router, prefix="/api", tags=["Verification"])
 app.include_router(audit_router, prefix="/api", tags=["Audit"])
 app.include_router(eval_router, prefix="/api", tags=["Evaluation"])
 
+# Voice Calling Agent (Twilio) — optional, only if twilio is installed
+try:
+    from app.voice.router import router as voice_router
+    app.include_router(voice_router, prefix="/api", tags=["Voice Agent"])
+    logger.info("✓ Voice calling agent router loaded")
+except ImportError as e:
+    logger.warning(f"⚠ Voice calling agent not available (install twilio): {e}")
+
 
 if __name__ == "__main__":
     import uvicorn
