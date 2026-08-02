@@ -53,6 +53,9 @@ _document_store: dict[str, IngestionResult] = {}
 _chunk_store: dict[str, dict] = {}
 _raw_file_store: dict[str, tuple[bytes, str]] = {}  # doc_id -> (raw_bytes, filename)
 
+# Processing status tracker — allows the frontend to poll for progress
+_processing_status: dict[str, dict] = {}
+
 
 def get_document_store() -> dict:
     """Get the in-memory document store."""
@@ -69,18 +72,115 @@ def get_raw_file_store() -> dict:
     return _raw_file_store
 
 
-async def _process_extraction_and_graph(merged: IngestionResult, all_chunks: list):
+async def _process_full_ingestion(
+    doc_id: str,
+    file_data: bytes,
+    filename: str,
+    ext: str,
+    extract_tables_flag: bool,
+    language: str,
+):
+    """
+    Background task: runs the FULL ingestion pipeline (file parsing + entity
+    extraction + graph writes). Updates _processing_status at each phase so
+    the frontend can poll for progress.
+    """
+    import time
+
+    start_time = time.perf_counter()
+
     try:
-        if all_chunks:
-            logger.info(f"Starting background extraction for {merged.filename}")
+        # ── Phase 1: File-type routing → parse chunks ──────────────────
+        _processing_status[doc_id]["phase"] = "ingesting"
+        _processing_status[doc_id]["detail"] = "Parsing document..."
+        logger.info(f"[BG] Phase 1 — ingesting {filename}")
+
+        results: list[IngestionResult] = []
+
+        if ext in PDF_EXTENSIONS:
+            pdf_result = await ingest_pdf(file_data, filename, doc_id)
+            results.append(pdf_result)
+
+            if extract_tables_flag:
+                _processing_status[doc_id]["detail"] = "Extracting tables..."
+                table_result = await ingest_tables(file_data, filename, doc_id)
+                if table_result.chunks:
+                    results.append(table_result)
+
+        elif ext in AUDIO_EXTENSIONS:
+            audio_result = await ingest_audio(
+                file_data, filename, doc_id, language=language
+            )
+            results.append(audio_result)
+
+        elif ext in IMAGE_EXTENSIONS:
+            mime = IMAGE_MIME_MAP.get(ext, "image/png")
+            schematic_result = await ingest_schematic(
+                file_data, filename, doc_id, mime_type=mime
+            )
+            results.append(schematic_result)
+
+        # Merge results
+        all_chunks = []
+        total_errors = []
+        for r in results:
+            all_chunks.extend(r.chunks)
+            if r.error:
+                total_errors.append(r.error)
+
+        merged = IngestionResult(
+            doc_id=doc_id,
+            filename=filename,
+            content_type=ext.lstrip("."),
+            chunks=all_chunks,
+            total_chunks=len(all_chunks),
+            status="success" if all_chunks else "error",
+            error="; ".join(total_errors) if total_errors else None,
+            processing_time_seconds=sum(r.processing_time_seconds for r in results),
+        )
+        _document_store[doc_id] = merged
+
+        # Store individual chunks for retrieval
+        for chunk in all_chunks:
+            _chunk_store[chunk.chunk_id] = chunk.to_dict()
+
+        _processing_status[doc_id]["total_chunks"] = len(all_chunks)
+
+        if not all_chunks:
+            _processing_status[doc_id]["phase"] = "error"
+            _processing_status[doc_id]["error"] = merged.error or "No content extracted"
+            return
+
+        # ── Phase 2: Entity extraction + graph write ───────────────────
+        _processing_status[doc_id]["phase"] = "extracting"
+        _processing_status[doc_id]["detail"] = "Extracting entities & building graph..."
+        logger.info(f"[BG] Phase 2 — extracting entities for {filename}")
+
+        try:
             extraction_result = await extract_entities_from_chunks(all_chunks)
             await write_document_to_graph(merged)
             await write_entities_to_graph(extraction_result["entities"])
             await write_relationships_to_graph(extraction_result["relationships"])
             await write_mention_edges(extraction_result["entities"])
-            logger.info(f"Background extraction complete for {merged.filename}")
+            _processing_status[doc_id]["unique_entities"] = len(extraction_result.get("entities", []))
+        except Exception as e:
+            logger.error(f"[BG] Extraction/graph write failed for {filename}: {e}")
+            # Non-fatal: ingestion succeeded, extraction failed
+            _processing_status[doc_id]["extraction_error"] = str(e)
+
+        # ── Done ───────────────────────────────────────────────────────
+        elapsed = time.perf_counter() - start_time
+        _processing_status[doc_id]["phase"] = "complete"
+        _processing_status[doc_id]["detail"] = "Ingestion complete"
+        _processing_status[doc_id]["processing_time_seconds"] = round(elapsed, 2)
+        logger.info(
+            f"[BG] Ingestion complete: {filename} — {len(all_chunks)} chunks in {elapsed:.2f}s"
+        )
+
     except Exception as e:
-        logger.error(f"Background extraction/graph write failed: {e}")
+        logger.error(f"[BG] Full ingestion failed for {filename}: {e}")
+        _processing_status[doc_id]["phase"] = "error"
+        _processing_status[doc_id]["error"] = str(e)
 
 
 @router.post("/ingest")
@@ -93,14 +193,15 @@ async def ingest_file(
     """
     Upload and ingest a file into the knowledge graph.
 
+    Returns immediately with a doc_id. All heavy processing (parsing, entity
+    extraction, graph writes) runs in a background task to avoid Render's
+    30-second proxy timeout. Poll GET /ingest/status/{doc_id} for progress.
+
     Supported formats:
     - PDF (.pdf) — text extraction + OCR fallback
     - Audio (.wav, .mp3, .m4a, .ogg, .flac, .webm) — Whisper transcription
     - Images (.png, .jpg, .svg, etc.) — Gemini Vision analysis
     - Tables are auto-extracted from PDFs
-
-    Returns:
-        Ingestion status, chunk count, and extracted chunks
     """
     if not file.filename:
         raise HTTPException(status_code=400, detail="No filename provided")
@@ -109,9 +210,19 @@ async def ingest_file(
     ext = os.path.splitext(filename)[1].lower()
     doc_id = str(uuid.uuid4())
 
+    # Validate file type before accepting
+    all_supported = PDF_EXTENSIONS | AUDIO_EXTENSIONS | IMAGE_EXTENSIONS
+    if ext not in all_supported:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type: {ext}. "
+            f"Supported: PDF, Audio ({', '.join(AUDIO_EXTENSIONS)}), "
+            f"Images ({', '.join(IMAGE_EXTENSIONS)})"
+        )
+
     logger.info(f"Ingest request: {filename} (ext={ext}, doc_id={doc_id})")
 
-    # Read file data
+    # Read file data (fast — just buffering bytes)
     try:
         file_data = await file.read()
     except Exception as e:
@@ -123,103 +234,59 @@ async def ingest_file(
     # Store raw file bytes for later annotated export
     _raw_file_store[doc_id] = (file_data, filename)
 
-    # Route to correct pipeline
-    results: list[IngestionResult] = []
+    # Initialize processing status
+    _processing_status[doc_id] = {
+        "doc_id": doc_id,
+        "filename": filename,
+        "phase": "accepted",
+        "detail": "File accepted, queued for processing...",
+        "total_chunks": 0,
+        "unique_entities": 0,
+        "error": None,
+        "extraction_error": None,
+        "processing_time_seconds": 0,
+    }
 
-    try:
-        if ext in PDF_EXTENSIONS:
-            # PDF: extract text + tables
-            pdf_result = await ingest_pdf(file_data, filename, doc_id)
-            results.append(pdf_result)
-
-            # Also extract tables from PDF
-            if extract_tables:
-                table_result = await ingest_tables(file_data, filename, doc_id)
-                if table_result.chunks:
-                    results.append(table_result)
-
-        elif ext in AUDIO_EXTENSIONS:
-            audio_result = await ingest_audio(
-                file_data, filename, doc_id, language=language or "en"
-            )
-            results.append(audio_result)
-
-        elif ext in IMAGE_EXTENSIONS:
-            mime = IMAGE_MIME_MAP.get(ext, "image/png")
-            schematic_result = await ingest_schematic(
-                file_data, filename, doc_id, mime_type=mime
-            )
-            results.append(schematic_result)
-
-        else:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Unsupported file type: {ext}. "
-                f"Supported: PDF, Audio ({', '.join(AUDIO_EXTENSIONS)}), "
-                f"Images ({', '.join(IMAGE_EXTENSIONS)})"
-            )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Ingestion failed for {filename}: {e}")
-        raise HTTPException(status_code=500, detail=f"Ingestion failed: {e}")
-
-    # Merge results
-    all_chunks = []
-    total_errors = []
-    for r in results:
-        all_chunks.extend(r.chunks)
-        if r.error:
-            total_errors.append(r.error)
-
-    # Store in memory
-    merged = IngestionResult(
-        doc_id=doc_id,
-        filename=filename,
-        content_type=ext.lstrip("."),
-        chunks=all_chunks,
-        total_chunks=len(all_chunks),
-        status="success" if all_chunks else "error",
-        error="; ".join(total_errors) if total_errors else None,
-        processing_time_seconds=sum(r.processing_time_seconds for r in results),
+    # Launch ALL processing in background — response returns instantly
+    background_tasks.add_task(
+        _process_full_ingestion,
+        doc_id, file_data, filename, ext,
+        extract_tables or True, language or "en",
     )
-    _document_store[doc_id] = merged
 
-    # Store individual chunks for retrieval
-    for chunk in all_chunks:
-        _chunk_store[chunk.chunk_id] = chunk.to_dict()
-
-    # --- Phase 2: Entity extraction + graph write (Moved to background to prevent 502) ---
-    background_tasks.add_task(_process_extraction_and_graph, merged, all_chunks)
-    extraction_stats = {"status": "processing in background"}
-    graph_stats = {"status": "processing in background"}
-
-    logger.info(
-        f"Ingestion complete: {filename} — {len(all_chunks)} chunks, "
-        f"{merged.processing_time_seconds:.2f}s (extraction in background)"
-    )
+    logger.info(f"File accepted, background ingestion launched: {filename} (doc_id={doc_id})")
 
     return {
         "doc_id": doc_id,
         "filename": filename,
-        "status": merged.status,
-        "total_chunks": len(all_chunks),
-        "content_types": list(set(c.content_type.value for c in all_chunks)),
-        "processing_time_seconds": round(merged.processing_time_seconds, 2),
-        "error": merged.error,
-        "extraction": extraction_stats,
-        "graph": graph_stats,
-        "chunks_preview": [
-            {
-                "chunk_id": c.chunk_id,
-                "content_type": c.content_type.value,
-                "citation": c.citation,
-                "text_preview": c.raw_text[:200] + "..." if len(c.raw_text) > 200 else c.raw_text,
-            }
-            for c in all_chunks[:10]  # Preview first 10 chunks
-        ],
+        "status": "processing",
     }
+
+
+@router.get("/ingest/status/{doc_id}")
+async def get_ingestion_status(doc_id: str):
+    """
+    Poll for the processing status of an ingestion job.
+
+    Phases: accepted → ingesting → extracting → complete (or error)
+    """
+    status = _processing_status.get(doc_id)
+    if not status:
+        # Check if it's already in the document store (from a previous run)
+        if doc_id in _document_store:
+            doc = _document_store[doc_id]
+            return {
+                "doc_id": doc_id,
+                "filename": doc.filename,
+                "phase": "complete",
+                "detail": "Ingestion complete",
+                "total_chunks": doc.total_chunks,
+                "unique_entities": 0,
+                "error": doc.error,
+                "processing_time_seconds": round(doc.processing_time_seconds, 2),
+            }
+        raise HTTPException(status_code=404, detail=f"No ingestion job found for doc_id: {doc_id}")
+    return status
 
 
 @router.get("/documents")

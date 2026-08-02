@@ -116,7 +116,7 @@ async function uploadFile(file) {
 
     progress.style.display = 'block';
     status.textContent = `Uploading ${file.name}...`;
-    fill.style.width = '30%';
+    fill.style.width = '10%';
 
     // Excite web network during upload
     if (window.webNetworkExcite) window.webNetworkExcite(0.7);
@@ -125,12 +125,7 @@ async function uploadFile(file) {
     formData.append('file', file);
     formData.append('extract_tables', 'true');
 
-    let docId = null;
-
     try {
-        fill.style.width = '60%';
-        status.textContent = 'Processing & extracting entities...';
-
         const res = await fetch('/api/ingest', {
             method: 'POST',
             body: formData,
@@ -149,51 +144,119 @@ async function uploadFile(file) {
             throw new Error(errorDetail);
         }
 
-        const rawText = await res.text();
-        if (!rawText || !rawText.trim()) {
-            throw new Error("Server returned an empty response. The backend may have timed out or crashed during processing.");
+        const data = await res.json();
+        const docId = data.doc_id;
+
+        if (!docId) {
+            throw new Error('Server did not return a doc_id');
         }
 
-        let data;
-        try {
-            data = JSON.parse(rawText);
-        } catch (jsonErr) {
-            throw new Error(`Invalid JSON response: ${rawText.substring(0, 100)}`);
-        }
+        fill.style.width = '20%';
+        status.textContent = 'File accepted — processing...';
+        showToast(`${file.name} accepted, processing in background...`, 'success');
 
-        fill.style.width = '80%';
+        // Update doc count immediately
+        const countEl = document.getElementById('docCount');
+        if (countEl) countEl.textContent = parseInt(countEl.textContent || '0') + 1;
 
-        if (data.status === 'success' || data.status === 'partial') {
-            docId = data.doc_id;
-            status.textContent = `✓ ${data.total_chunks} chunks extracted — running compliance debate...`;
-            fill.style.width = '90%';
-            showToast(`${file.name} ingested: ${data.total_chunks} chunks, ${data.extraction?.unique_entities || 0} entities`, 'success');
-            refreshDocuments();
-            refreshStatus();
+        // Poll for processing progress
+        pollIngestionStatus(docId, file.name, progress, status, fill);
 
-            // Update doc count
-            const countEl = document.getElementById('docCount');
-            if (countEl) countEl.textContent = parseInt(countEl.textContent || '0') + 1;
-
-            // Run multi-agent debate + compliance analysis on the uploaded doc
-            setTimeout(() => runUploadDebateAnalysis(docId, file.name), 500);
-
-        } else {
-            status.textContent = `✗ Error: ${data.error || 'Unknown error'}`;
-            showToast(`Ingestion failed: ${data.error}`, 'error');
-        }
     } catch (e) {
         status.textContent = `✗ Upload failed: ${e.message}`;
         showToast(`Upload failed: ${e.message}`, 'error');
+        fill.style.width = '100%';
+        setTimeout(() => {
+            progress.style.display = 'none';
+            fill.style.width = '0%';
+            if (window.webNetworkExcite) window.webNetworkExcite(0);
+        }, 4000);
     }
+}
 
-    fill.style.width = '100%';
-    setTimeout(() => {
-        progress.style.display = 'none';
-        fill.style.width = '0%';
-        // Calm the network
-        if (window.webNetworkExcite) window.webNetworkExcite(0);
-    }, 3000);
+/**
+ * Poll /api/ingest/status/{docId} until processing completes or fails.
+ * Updates the progress bar and status text in real-time.
+ */
+function pollIngestionStatus(docId, filename, progress, statusEl, fill) {
+    const POLL_INTERVAL_MS = 2000;
+    const MAX_POLLS = 150; // 5 minutes max
+    let pollCount = 0;
+
+    const phaseProgress = {
+        'accepted': '20%',
+        'ingesting': '45%',
+        'extracting': '70%',
+        'complete': '100%',
+        'error': '100%',
+    };
+
+    const phaseLabels = {
+        'accepted': 'Queued for processing...',
+        'ingesting': 'Parsing document & extracting text...',
+        'extracting': 'Extracting entities & building knowledge graph...',
+        'complete': 'Ingestion complete!',
+        'error': 'Processing failed',
+    };
+
+    const poller = setInterval(async () => {
+        pollCount++;
+        if (pollCount > MAX_POLLS) {
+            clearInterval(poller);
+            statusEl.textContent = '⚠ Processing is taking longer than expected. Check back later.';
+            showToast('Ingestion is still running in the background.', 'warning');
+            setTimeout(() => {
+                progress.style.display = 'none';
+                fill.style.width = '0%';
+                if (window.webNetworkExcite) window.webNetworkExcite(0);
+            }, 4000);
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/ingest/status/${docId}`);
+            if (!res.ok) return; // Retry on transient errors
+
+            const data = await res.json();
+            const phase = data.phase || 'accepted';
+
+            fill.style.width = phaseProgress[phase] || '30%';
+            statusEl.textContent = data.detail || phaseLabels[phase] || 'Processing...';
+
+            if (phase === 'complete') {
+                clearInterval(poller);
+                const chunks = data.total_chunks || 0;
+                const entities = data.unique_entities || 0;
+                statusEl.textContent = `✓ ${chunks} chunks extracted, ${entities} entities — running compliance debate...`;
+                showToast(`${filename} ingested: ${chunks} chunks, ${entities} entities`, 'success');
+                refreshDocuments();
+                refreshStatus();
+
+                // Trigger the multi-agent debate analysis
+                setTimeout(() => runUploadDebateAnalysis(docId, filename), 500);
+
+                setTimeout(() => {
+                    progress.style.display = 'none';
+                    fill.style.width = '0%';
+                    if (window.webNetworkExcite) window.webNetworkExcite(0);
+                }, 3000);
+
+            } else if (phase === 'error') {
+                clearInterval(poller);
+                const errorMsg = data.error || 'Unknown processing error';
+                statusEl.textContent = `✗ ${errorMsg}`;
+                showToast(`Ingestion failed: ${errorMsg}`, 'error');
+                setTimeout(() => {
+                    progress.style.display = 'none';
+                    fill.style.width = '0%';
+                    if (window.webNetworkExcite) window.webNetworkExcite(0);
+                }, 4000);
+            }
+        } catch (e) {
+            // Network error during poll — just retry on next interval
+            console.warn('Polling error:', e);
+        }
+    }, POLL_INTERVAL_MS);
 }
 
 async function runUploadDebateAnalysis(docId, filename) {
