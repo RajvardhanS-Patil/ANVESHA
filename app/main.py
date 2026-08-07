@@ -146,7 +146,11 @@ async def serve_frontend():
     """Serve the main frontend page."""
     index_path = os.path.join(static_dir, "index.html")
     if os.path.exists(index_path):
-        return FileResponse(index_path)
+        response = FileResponse(index_path)
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
     return JSONResponse(
         content={
             "message": "ANVESHA API is running. Frontend not yet deployed.",
