@@ -3691,18 +3691,20 @@ async function mockSendMessage() {
     if (input) input.value = '';
     addMessage(text, 'user');
     const t = addTypingIndicator('Multi-Agent Debate Protocol Initiated...');
-    await sleep(3500);
-    removeTypingIndicator(t);
-    const debateData = {
-        debate_mode: true,
-        verdict: "PARTIAL",
-        confidence: 52,
-        answer: "**PARTIAL COMPLIANCE.** The policy mandates AES-256 encryption in §1.0 but §3.0 admits plaintext PAN storage in transactions_db. This is a direct contradiction and critical compliance failure.",
-        advocate_argument: "§1.0 mandates AES-256 for all data at rest.",
-        skeptic_argument: "§3.0 admits transactions_db stores credit card numbers in plaintext.",
-        citations: ["Apex_Security_Policy.pdf §1.0", "Apex_Security_Policy.pdf §3.0"]
-    };
-    await simulateDebateChat(debateData, 'NOOP', 52, debateData.citations, 'demo-q-1');
+    
+    try {
+        const res = await fetch('/api/demo/chat/groq', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question: text, file_name: window.activeDemoFile || "Apex_Security_Policy.pdf" })
+        });
+        const debateData = await res.json();
+        removeTypingIndicator(t);
+        await simulateDebateChat(debateData, 'NOOP', debateData.confidence, debateData.citations, debateData.answer_id);
+    } catch (e) {
+        removeTypingIndicator(t);
+        addMessage(`Error generating mock debate: ${e.message}`, 'assistant');
+    }
 }
 
 

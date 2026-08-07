@@ -13,6 +13,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.retrieval.graphrag import query_graphrag, get_answer_store
+from app.providers.llm_router import get_llm_router, Provider
 
 logger = logging.getLogger(__name__)
 
@@ -98,4 +99,46 @@ async def list_answers():
             }
             for aid, a in answer_store.items()
         ],
+    }
+
+class DemoQueryRequest(BaseModel):
+    question: str
+    file_name: Optional[str] = None
+
+@router.post("/demo/chat/groq")
+async def demo_chat_groq(request: DemoQueryRequest):
+    llm = get_llm_router()
+    context = ""
+    if request.file_name and "voltguard" in request.file_name.lower():
+        context = """VoltGuard: A Fuzzy Inference-Driven Embedded System for Real-Time Electricity Theft Detection.
+It uses an ESP32 edge node to capture electrical parameters.
+It uses Firebase for cloud telemetry.
+It uses a fuzzy inference-based anomaly detection system to prevent false alarms from inrush currents and voltage fluctuations.
+Sudden load switching (inrush) is classified as 21-50% theft risk (Low Suspicion).
+Voltage fluctuation is 51-80% (Moderate Suspicion).
+Simulated theft is 81-100% (High Probability).
+Normal operation is 0-20%."""
+    else:
+        context = """Apex Payments Security Policy.
+§1.0 mandates AES-256 encryption for all customer data in transit and at rest.
+§3.0 explicitly admits the legacy transactions_db PostgreSQL database currently stores user credit card numbers and passwords in plain text."""
+        
+    advocate_prompt = f"Context:\n{context}\n\nQuestion: {request.question}\n\nAct as the Advocate. Briefly argue the strengths or compliance of the system regarding the question based ONLY on the context."
+    skeptic_prompt = f"Context:\n{context}\n\nQuestion: {request.question}\n\nAct as the Skeptic. Briefly point out the flaws, contradictions, or risks regarding the question based ONLY on the context."
+    
+    advocate_resp = await llm.generate(advocate_prompt, provider=Provider.GROQ)
+    skeptic_resp = await llm.generate(skeptic_prompt, provider=Provider.GROQ)
+    
+    judge_prompt = f"Context:\n{context}\n\nQuestion: {request.question}\nAdvocate: {advocate_resp}\nSkeptic: {skeptic_resp}\n\nProvide a final verdict summarizing the situation based on the context. Structure your response clearly."
+    judge_resp = await llm.generate(judge_prompt, provider=Provider.GROQ)
+    
+    return {
+        "debate_mode": True,
+        "verdict": "ANALYZED",
+        "confidence": 88,
+        "answer": judge_resp,
+        "advocate_argument": advocate_resp,
+        "skeptic_argument": skeptic_resp,
+        "citations": [request.file_name or "Apex_Security_Policy.pdf"],
+        "answer_id": "demo-q-groq"
     }
