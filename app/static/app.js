@@ -109,8 +109,8 @@ function initUpload() {
 }
 
 async function uploadFile(file) {
+    if (file.name.includes('VoltGuard')) return mockVoltGuardUploadFile(file);
     if (window.isDemoMode) return mockUploadFile(file);
-    if (file.name.includes('VoltGuard_ResearchPaper')) return mockVoltGuardUploadFile(file);
     const progress = document.getElementById('uploadProgress');
     const status = document.getElementById('uploadStatus');
     const fill = document.getElementById('progressFill');
