@@ -4487,10 +4487,11 @@ async function mockVoltGuardUploadFile(file) {
     showToast(`✅ ${file.name} ingested — 24 chunks, 42 entities`, 'success');
 
     const countEl = document.getElementById('docCount');
-    if (countEl) countEl.textContent = parseInt(countEl.textContent || '0') + 1;
+    if (countEl) countEl.textContent = '1';
 
     const docList = document.getElementById('recentDocsList');
     if (docList) {
+        docList.innerHTML = '';
         const div = document.createElement('div');
         div.className = 'doc-item';
         div.innerHTML = `
@@ -4546,6 +4547,7 @@ async function runVoltGuardUploadDebate(filename) {
     if (window.webNetworkExcite) window.webNetworkExcite(2.5);
 
     const container = document.getElementById('chatMessages');
+    if (container) container.innerHTML = '';
 
     const stageHeader = document.createElement('div');
     stageHeader.className = 'message assistant';
